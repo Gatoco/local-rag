@@ -1,0 +1,75 @@
+=== Estado del repositorio ===
+En la rama master
+
+No hay commits todavía
+
+Cambios a ser confirmados:
+  (usa "git rm --cached <archivo>..." para sacar del área de stage)
+	nuevos archivos: .gitignore
+	nuevos archivos: README.md
+	nuevos archivos: docs/DEVELOPMENT_PLAN.md
+	nuevos archivos: docs/sprint_1/01_models_guia_detallada.md
+	nuevos archivos: docs/sprint_1/02_ports_introduccion.md
+	nuevos archivos: docs/sprint_1/03_verificacion_y_testing.md
+	nuevos archivos: docs/sprint_1/README.md
+	nuevos archivos: docs/stack.md
+	nuevos archivos: main.py
+	nuevos archivos: push_to_github.sh
+	nuevos archivos: requirements.txt
+	nuevos archivos: src/__init__.py
+	nuevos archivos: src/application/__init__.py
+	nuevos archivos: src/application/ports/__init__.py
+	nuevos archivos: src/application/ports/rag_port.py
+	nuevos archivos: src/application/services/__init__.py
+	nuevos archivos: src/application/services/rag_service.py
+	nuevos archivos: src/domain/__init__.py
+	nuevos archivos: src/domain/models.py
+	nuevos archivos: src/domain/ports/__init__.py
+	nuevos archivos: src/domain/ports/document_loader_port.py
+	nuevos archivos: src/domain/ports/document_store_port.py
+	nuevos archivos: src/domain/ports/embedding_port.py
+	nuevos archivos: src/domain/ports/llm_port.py
+	nuevos archivos: src/infrastructure/__init__.py
+	nuevos archivos: src/infrastructure/adapters/__init__.py
+	nuevos archivos: src/infrastructure/adapters/chromadb_adapter.py
+	nuevos archivos: src/infrastructure/adapters/hf_embedding_adapter.py
+	nuevos archivos: src/infrastructure/adapters/langchain_loader_adapter.py
+	nuevos archivos: src/infrastructure/adapters/ollama_llm_adapter.py
+	nuevos archivos: src/infrastructure/entrypoints/__init__.py
+	nuevos archivos: src/infrastructure/entrypoints/cli_adapter.py
+	nuevos archivos: tests/__init__.py
+	nuevos archivos: tests/integration/__init__.py
+	nuevos archivos: tests/unit/__init__.py
+	nuevos archivos: tests/unit/test_models.py
+
+Archivos sin seguimiento:
+  (usa "git add <archivo>..." para incluirlo a lo que será confirmado)
+	output.txt
+
+
+=== Agregando archivos ===
+
+=== Creando commit ===
+Identidad del autor desconocido
+
+*** Por favor cuéntame quién eres.
+
+Ejecuta
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Tu Nombre"
+
+para configurar la identidad por defecto de tu cuenta.
+Omite --global para configurar tu identidad solo en este repositorio.
+
+fatal: no es posible auto-detectar la dirección de correo (se obtuvo 'iwakura@zen.(none)')
+
+=== Verificando remoto ===
+origin	https://github.com/Gatoco/local-rag (fetch)
+origin	https://github.com/Gatoco/local-rag (push)
+
+=== Subiendo a GitHub ===
+error: src refspec master no concuerda con ninguno
+error: falló el empuje de algunas referencias a 'https://github.com/Gatoco/local-rag'
+
+=== Verificando resultado ===

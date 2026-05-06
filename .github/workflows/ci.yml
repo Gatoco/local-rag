@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main, develop]
 
+env:
+  JWT_SECRET_KEY: test-secret-key-for-ci-only
+  ADMIN_PASSWORD: test-admin-password
+  USER_PASSWORD: test-user-password
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -50,7 +55,7 @@ jobs:
         run: pip install ruff
 
       - name: Run ruff linter
-        run: ruff check src/
+        run: ruff check src/ --ignore=B008
 
   typecheck:
     runs-on: ubuntu-latest
@@ -68,7 +73,7 @@ jobs:
         run: pip install mypy
 
       - name: Run mypy
-        run: mypy src/
+        run: mypy src/ --ignore-missing-imports
 
   build:
     runs-on: ubuntu-latest

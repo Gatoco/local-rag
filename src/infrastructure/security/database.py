@@ -95,7 +95,8 @@ class UserRepository:
 
     def create_user(self, username: str, password: str, role: str = "user") -> UserRecord:
         """Crea un nuevo usuario."""
-        hashed = pwd_context.hash(password)
+        safe_password = password[:72]
+        hashed = pwd_context.hash(safe_password)
         with self.db.get_connection() as conn:
             conn.execute(
                 "INSERT INTO users (username, hashed_password, role) VALUES (?, ?, ?)",
@@ -105,7 +106,8 @@ class UserRepository:
 
     def update_password(self, username: str, new_password: str) -> bool:
         """Actualiza la contraseña de un usuario."""
-        hashed = pwd_context.hash(new_password)
+        safe_password = new_password[:72]
+        hashed = pwd_context.hash(safe_password)
         with self.db.get_connection() as conn:
             cursor = conn.execute(
                 "UPDATE users SET hashed_password = ? WHERE username = ?",

@@ -71,3 +71,4 @@ Thumbs.db
 # Project specific
 .env.local
 config.local.json
+models/*.gguf

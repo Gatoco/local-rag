@@ -1,17 +1,29 @@
+# System Requirements: Python 3.12+
+# ⚠️ IMPORTANTE: Este proyecto REQUIERE Python 3.12
+# ❌ NO compatible con Python 3.14 (Pydantic v2 incompatibility)
+# ❌ NO soportado en Python 3.11 o anteriores
+# Verificar disponibilidad: python --version
+# Ver archivo: pyproject.toml, .python-version, .tool-versions
+
 # Core RAG Framework
-langchain>=0.1.0
-langchain-community>=0.0.1
+langchain>=0.3.0,<1.0.0
+langchain-core>=0.3.0,<1.0.0
+langchain-community>=0.3.0,<1.0.0
+langchain-text-splitters>=0.3.0,<1.0.0
+langchain-huggingface>=0.1.0,<1.0.0
 
 # Vector Store & Embeddings
-chromadb>=0.3.21
+chromadb>=0.5.0
 sentence-transformers>=2.2.0
 
-# LLM Inference
-ollama>=0.0.48
+# LLM Inference - llama.cpp (REEMPLAZA OLLAMA)
+# Ejecución local embebida, sin proceso externo
+llama-cpp-python>=0.2.90
 
 # Document Processing
 pypdf>=3.17.0
 python-docx>=0.8.11
+docx2txt>=0.8
 python-pptx>=0.6.21
 openpyxl>=3.1.0
 
@@ -23,12 +35,27 @@ numpy>=1.24.0
 click>=8.1.0
 python-dotenv>=1.0.0
 colorama>=0.4.6
+tqdm>=4.65.0  # Barras de progreso
+
+# API REST (FastAPI)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Seguridad
+python-jose[cryptography]>=3.3.0  # JWT
+passlib[bcrypt]>=1.7.4,<4.1.0  # Password hashing
+python-multipart>=0.0.6  # Form data para auth
+
+# UI Web (Streamlit)
+streamlit>=1.30.0
 
 # Development & Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0
 black>=23.0.0
-flake8>=6.0.0
+ruff>=0.1.0
 mypy>=1.0.0
 isort>=5.12.0
 

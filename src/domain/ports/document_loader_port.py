@@ -1,18 +1,14 @@
-# src/domain/ports/document_loader_port.py
-# Propósito: Define el puerto de salida para la carga y división de documentos.
-
 from abc import ABC, abstractmethod
-from typing import List
-from src.domain.models import Document
+from typing import Any
+
 
 class DocumentLoaderPort(ABC):
-    # Propósito: Interfaz para cargar y dividir documentos.
     @abstractmethod
-    def load_documents(self, file_path: str) -> List[Document]:
-        # Propósito: Carga documentos desde una ruta de archivo especificada.
+    def load_and_split(self, file_path: str) -> list[Any]:
+        """Carga un archivo y lo divide en fragmentos (chunks)."""
         pass
 
     @abstractmethod
-    def split_documents(self, documents: List[Document]) -> List[Document]:
-        # Propósito: Divide una lista de documentos en trozos más pequeños y procesables.
+    def load_directory(self, dir_path: str) -> list[Any]:
+        """Carga todos los archivos de un directorio y los divide."""
         pass

@@ -1,227 +1,276 @@
-# Sistema RAG Local
+# Sistema RAG Local (llama.cpp + ChromaDB + Hugging Face + LangChain)
 
-Un sistema completo de **Generación Aumentada por Recuperación (RAG)** basado en arquitectura hexagonal, que funciona completamente local sin dependencias en servicios en la nube.
+Implementación de un sistema RAG totalmente local, optimizado para privacidad, control de datos y modularidad. La arquitectura sigue Ports & Adapters (hexagonal), por lo que puedes cambiar componentes de infraestructura sin romper la lógica de negocio.
 
-## 🚀 Características
+## Objetivo técnico
 
-- ✅ **100% Local**: Sin envío de datos a servicios externos
-- ✅ **Arquitectura Hexagonal**: Código desacoplado y mantenible
-- ✅ **LLMs Locales**: Integración con Ollama (Llama 2, Mistral, etc.)
-- ✅ **Vector Database**: ChromaDB para búsqueda semántica eficiente
-- ✅ **Embeddings Inteligentes**: HuggingFace Sentence Transformers
-- ✅ **Múltiples Formatos**: Soporta CSV, PDF, DOCX, XLSX, TXT
-- ✅ **CLI Interactiva**: Interfaz amigable de línea de comandos
+Construir un pipeline RAG local de extremo a extremo:
 
-## 📋 Requisitos Previos
+1. Ingesta y preprocesamiento de documentos.
+2. Fragmentación (chunking) para recuperación semántica estable.
+3. Generación de embeddings locales con modelos de Hugging Face.
+4. Almacenamiento y búsqueda vectorial en ChromaDB persistente.
+5. Generación final con LLM local usando **llama.cpp** (sin proceso externo).
 
-- **Python 3.9+**
-- **Ollama** instalado y ejecutándose localmente (descarga desde [ollama.ai](https://ollama.ai))
-- **Git**
+## Stack usado
 
-## 🔧 Instalación
+- **llama.cpp** para inferencia local del LLM (embebido, sin servidor externo).
+- ChromaDB como vector store persistente.
+- Hugging Face Sentence Transformers para embeddings.
+- LangChain como capa de orquestación RAG.
 
-### 1. Clonar el Repositorio
+## Requisitos previos
+
+- **Python 3.12** (OBLIGATORIO - especificado en `.python-version` y `pyproject.toml`)
+  - ❌ Python 3.14: Incompatible con Pydantic v2
+  - ⚠️ Python 3.11: No soportado (EOL octubre 2027)
+  - ✅ Python 3.12: Versión estable recomendada
+
+- **Modelo GGUF descargado** (formato cuantizado para llama.cpp)
+
+## Modelos GGUF Recomendados
+
+| Modelo | Tamaño | VRAM | Calidad | Download |
+|--------|--------|------|---------|----------|
+| Mistral-7B-Instruct-v0.3 | 4.4 GB | 6 GB | ⭐⭐⭐⭐ | [Q4_K_M](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/mistral-7b-instruct-v0.3.Q4_K_M.gguf) |
+| Llama-3.2-3B-Instruct | 2.0 GB | 4 GB | ⭐⭐⭐ | [Q4_K_M](https://huggingface.co/lmstudio-community/Llama-3.2-3B-Instruct-GGUF) |
+| Phi-3-mini-4k-instruct | 2.3 GB | 4 GB | ⭐⭐⭐⭐ | [Q4_K_M](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf) |
+
+### Descargar modelo (ejemplo con Mistral-7B)
 
 ```bash
-git clone <tu-repo>
-cd local-rag
+# Crear directorio de modelos
+mkdir -p ./models
+
+# Descargar Mistral-7B cuantizado (4.4 GB)
+wget -O ./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf \
+  https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/mistral-7b-instruct-v0.3.Q4_K_M.gguf
 ```
 
-### 2. Crear Virtual Environment
+## Instalación
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# o
-.venv\Scripts\activate  # Windows
-```
-
-### 3. Instalar Dependencias
-
-```bash
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Descargar Modelo Ollama (Opcional)
+**Nota:** `llama-cpp-python` puede tardar unos minutos en compilar la primera vez.
 
-Si aún no tienes Ollama instalado:
+## Configuración
 
-```bash
-ollama pull llama2
-# o
-ollama pull mistral
+Crea un archivo `.env` en la raíz del proyecto:
+
+```env
+# LLM local con llama.cpp (modelo GGUF)
+LLAMA_CPP_MODEL_PATH=./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf
+
+# Capas en GPU (0=CPU, >0=GPU layers)
+N_GPU_LAYERS=0
+
+# Ventana de contexto (tokens)
+N_CTX=4096
+
+# Embeddings locales
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+
+# Persistencia vectorial
+CHROMA_DB_PATH=./chroma_db
+
+# Ruta de ingesta inicial (opcional)
+DOCS_PATH=./docs_to_ingest
+
+# Recuperación
+TOP_K_DOCUMENTS=4
+
+# Chunking
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=150
 ```
 
-## 📖 Uso Rápido
+## Arranque de la aplicación
 
-### Iniciar la Aplicación
+### Opción 1: CLI Interactiva (Mejorada)
 
 ```bash
 python main.py
 ```
 
-### Comandos Disponibles
+**Novedades:**
+- 🎨 Emojis para feedback visual
+- 📝 Respuestas con word-wrap automático
+- 🆕 Comandos: `count`, `clear`
+- ❌ Mensajes de error descriptivos
 
-```
-ingest <ruta_archivo>  - Cargar documentos
-  Ejemplo: ingest data/raw/sample.csv
-
-query <pregunta>       - Hacer una pregunta
-  Ejemplo: query ¿Cuál es el impacto financiero?
-
-help                   - Mostrar ayuda
-
-exit                   - Salir
-```
-
-## 📁 Estructura del Proyecto
-
-```
-local-rag/
-├── src/
-│   ├── domain/                      # Core del negocio (sin dependencias externas)
-│   │   ├── models.py               # Document, Query, Answer
-│   │   ├── ports/                  # Interfaces (contratos)
-│   │   └── exceptions.py
-│   ├── application/                # Lógica de aplicación
-│   │   ├── services/               # RAGService (orquestación)
-│   │   └── ports/                  # Puerto de entrada
-│   └── infrastructure/             # Implementaciones concretas
-│       ├── adapters/               # ChromaDB, Ollama, HF Embeddings, LangChain
-│       └── entrypoints/            # CLI
-├── data/
-│   ├── raw/                        # Documentos originales
-│   └── processed/                  # Documentos procesados
-├── docs/                           # Documentación
-├── tests/
-│   ├── unit/                       # Tests unitarios
-│   └── integration/                # Tests de integración
-├── logs/                           # Archivos de log
-├── main.py                         # Punto de entrada
-├── requirements.txt                # Dependencias Python
-└── README.md                       # Este archivo
-```
-
-## 🏗️ Arquitectura
-
-El proyecto implementa **Arquitectura Hexagonal (Ports & Adapters)**:
-
-```
-┌─────────────────────────────────────┐
-│         CLI Adapter (Entrada)       │
-└─────────────────┬───────────────────┘
-                  │
-┌─────────────────▼───────────────────┐
-│     RAGService (Orquestación)       │
-└─────────────────┬───────────────────┘
-                  │
-        ┌─────────┼─────────┬─────────┐
-        │         │         │         │
-   ┌────▼──┐ ┌───▼──┐ ┌───▼──┐ ┌───▼──┐
-   │ChromaDB  HF Embed  Ollama  LangChain
-   └────────┘ └───────┘ └──────┘ └───────┘
-```
-
-**Ventajas:**
-- Cambiar de infraestructura sin tocar la lógica de negocio
-- Fácil testing con mocks
-- Código escalable y mantenible
-
-## 📚 Documentación Detallada
-
-- [Stack Tecnológico](docs/stack.md) - Explicación de cada framework
-- [Plan de Desarrollo](docs/DEVELOPMENT_PLAN.md) - Sprints y roadmap completo
-
-## 🧪 Testing
-
-Ejecutar tests:
+### Opción 2: API REST
 
 ```bash
-pytest tests/
+# Iniciar servidor API
+python run_api.py
+
+# Servidor corriendo en http://localhost:8000
+# Documentación interactiva: http://localhost:8000/docs
 ```
 
-Con coverage:
+Ver [docs/API_REST.md](docs/API_REST.md) para documentación completa de la API.
+
+### Opción 3: UI Web (NUEVO)
 
 ```bash
-pytest --cov=src tests/
+# Iniciar UI Web con Streamlit
+python run_ui.py
+
+# UI corriendo en http://localhost:8501
+# Se abre automáticamente en tu navegador
 ```
 
-## 🔍 Flujo RAG
+**Características:**
+- 💬 Chat interactivo con historial
+- 📁 Ingesta de documentos (drag & drop)
+- 📈 Dashboard con métricas en tiempo real
+- ⚙️ Configuración desde sidebar
 
-1. **Ingestión**: Documentos → Cargador → Dividir en chunks → Generar embeddings → ChromaDB
-2. **Consulta**: Query → Embedding → Búsqueda en ChromaDB → Contexto → LLM → Respuesta
+Ver [docs/UI_WEB.md](docs/UI_WEB.md) para guía completa.
 
-## ⚙️ Configuración
+## CLI interactiva
 
-Variables de entorno (crear `.env`):
+Comandos disponibles:
 
-```
-# Modelo LLM
-OLLAMA_MODEL=llama2
-OLLAMA_BASE_URL=http://localhost:11434
-
-# Embeddings
-EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-
-# ChromaDB
-CHROMA_DB_PATH=./chroma_db
-
-# Búsqueda
-TOP_K_DOCUMENTS=4
+```text
+ingest-file <ruta>   : ingesta un archivo .pdf/.txt/.docx
+ingest-dir <ruta>    : ingesta recursiva de un directorio
+query <pregunta>     : ejecuta consulta RAG
+help                 : ayuda
+exit                 : salir
 ```
 
-## 🚨 Troubleshooting
+Ejemplos:
 
-### Error: "Conexión a Ollama rechazada"
+```text
+rag> ingest-dir ./docs_to_ingest
+rag> query Explica el teorema fundamental del calculo segun mis documentos
+rag> query Resume los conceptos clave de algebra lineal en 5 puntos
+```
+
+## Flujo técnico detallado
+
+### 1. Ingesta y preprocesamiento
+
+- `LangChainLoaderAdapter` detecta formato y carga contenido.
+- Soporta `.pdf`, `.txt`, `.docx`.
+- Recorre directorios de forma recursiva con `os.walk`.
+
+### 2. Chunking
+
+- `RecursiveCharacterTextSplitter` divide texto en fragmentos solapados.
+- `CHUNK_SIZE` y `CHUNK_OVERLAP` controlan granularidad y continuidad de contexto.
+
+### 3. Embeddings locales
+
+- `HFEmbeddingAdapter` usa `HuggingFaceEmbeddings`.
+- Los embeddings se normalizan (`normalize_embeddings=True`) para mejorar similitud coseno.
+
+### 4. Persistencia y recuperación semántica
+
+- `ChromaDBAdapter` guarda embeddings en disco (`CHROMA_DB_PATH`).
+- `RAGService` configura `retriever` con `top_k` configurable.
+
+### 5. Generación aumentada (con llama.cpp)
+
+- `LlamaCppLLMAdapter` ejecuta el modelo GGUF directamente en el proceso Python.
+- **Sin servidor HTTP externo** - todo ocurre en memoria.
+- El prompt fuerza respuestas en español, técnicas y sin alucinaciones fuera de contexto.
+
+## Estructura relevante del proyecto
+
+```text
+src/
+  application/services/rag_service.py
+  application/ports/rag_port.py
+  domain/ports/*.py
+  infrastructure/adapters/
+    chromadb_adapter.py
+    hf_embedding_adapter.py
+    langchain_loader_adapter.py
+    llama_cpp_llm_adapter.py    # ← NUEVO: reemplaza Ollama
+    chat_llama_cpp.py           # ← Wrapper LangChain
+  infrastructure/entrypoints/cli_adapter.py
+main.py
+```
+
+## Buenas prácticas de rendimiento local
+
+- Usa modelos GGUF cuantizados en Q4_K_M para equilibrio calidad/rendimiento.
+- Ajusta `N_GPU_LAYERS` si tienes GPU NVIDIA/AMD (ej: 35 para parcial en GPU).
+- Ajusta `TOP_K_DOCUMENTS`: si es muy alto, aumenta costo de tokens y latencia.
+- Ajusta chunking según tipo de documento: documentos técnicos suelen requerir overlap mayor.
+- Mantén Chroma persistente para evitar reindexar en cada ejecución.
+- Para trabajo offline estricto, descarga modelos GGUF antes de desconectar red.
+
+## Troubleshooting
+
+### Error: "Modelo GGUF no encontrado"
 
 ```bash
-# Verificar que Ollama está ejecutándose
-ollama serve
+# Descarga un modelo:
+mkdir -p ./models
+wget -O ./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf \
+  https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/mistral-7b-instruct-v0.3.Q4_K_M.gguf
 ```
 
-### Error: "No suitable CUDA-capable device found"
-
-Asegúrate de que tienes CUDA si quieres aceleración GPU. Sin GPU funciona pero más lentamente.
-
-### Error: "módulo no encontrado"
+### Error: "llama-cpp-python no está instalado"
 
 ```bash
-# Reactivar el venv
-source .venv/bin/activate
+# Reinstala dependencias:
 pip install -r requirements.txt
+
+# O instala directamente:
+pip install llama-cpp-python
 ```
 
-## 📊 Performance
+### Error por dependencias de LangChain
 
-- **Embeddings**: ~50ms por documento (GPU) / ~200ms (CPU)
-- **Búsqueda**: ~10ms en 1000 documentos
-- **Generación**: Depende del modelo LLM (Llama2: ~5-10 palabras/seg en CPU)
+```bash
+pip install -r requirements.txt --upgrade
+```
 
-## 🤝 Contribuir
+### Primera ejecución lenta (compilación)
 
-1. Fork el proyecto
-2. Crea una rama (`git checkout -b feature/AmazingFeature`)
-3. Commit cambios (`git commit -m 'Add AmazingFeature'`)
-4. Push (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+La primera instalación de `llama-cpp-python` puede compilar desde fuente (2-5 minutos).
+Es normal. Ejecuciones posteriores son instantáneas.
 
-## 📄 Licencia
+## Tests
 
-MIT License - Ver `LICENSE` para detalles
+```bash
+pytest tests/unit
+pytest tests/integration  # Requiere modelo GGUF disponible
+```
 
-## 💡 Próximos Pasos
+Nota: El test de integración se salta automáticamente si no hay modelo GGUF disponible.
 
-- [ ] API REST con FastAPI
-- [ ] Soporte multi-usuario
-- [ ] Dashboard de analytics
-- [ ] Fine-tuning de embeddings
-- [ ] Caché con Redis
-- [ ] Exportación de respuestas (PDF, Word)
+## Comparación: Ollama vs llama.cpp directo
 
-## 📞 Soporte
+| Característica | Ollama | llama.cpp (este proyecto) |
+|----------------|--------|---------------------------|
+| Proceso externo | Sí (`ollama serve`) | No (embebido en Python) |
+| Overhead HTTP | Sí (~10-15%) | No |
+| Rendimiento CPU | Bueno | Óptimo (+20-40% más rápido) |
+| Uso de RAM | +500MB | Base |
+| Gestión de modelos | Automática | Manual (descarga GGUF) |
+| Facilidad de uso | Muy alta | Media |
+| Control de parámetros | Limitado | Total |
 
-Para questions o issues, abre un GitHub Issue.
+## Migración desde Ollama
 
----
+Si ya tenías el proyecto con Ollama:
 
-**Construido con ❤️ usando LangChain + ChromaDB + Ollama**
+1. Descarga un modelo GGUF equivalente al que usabas en Ollama
+2. Actualiza `.env` con `LLAMA_CPP_MODEL_PATH=./models/tu-modelo.gguf`
+3. Ejecuta `pip install -r requirements.txt` (instala llama-cpp-python)
+4. No necesitas ejecutar `ollama serve`
+
+## Referencias
+
+- [llama.cpp GitHub](https://github.com/ggerganov/llama.cpp)
+- [TheBloke GGUF Models](https://huggingface.co/TheBloke)
+- [llama-cpp-python Docs](https://llama-cpp-python.readthedocs.io/)

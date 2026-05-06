@@ -1,17 +1,14 @@
-# src/domain/ports/embedding_port.py
-# Propósito: Define el puerto de salida para la generación de incrustaciones (embeddings).
-
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Any
+
 
 class EmbeddingPort(ABC):
-    # Propósito: Interfaz para generar incrustaciones a partir de texto.
     @abstractmethod
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        # Propósito: Genera incrustaciones para una lista de textos.
+    def get_embeddings_model(self) -> Any:
+        """Devuelve el modelo de embeddings para ser usado por el almacén vectorial."""
         pass
 
     @abstractmethod
-    def embed_query(self, text: str) -> List[float]:
-        # Propósito: Genera una incrustación para un solo texto de consulta.
+    def embed_query(self, text: str) -> list[float]:
+        """Convierte una cadena de texto en un vector numérico."""
         pass

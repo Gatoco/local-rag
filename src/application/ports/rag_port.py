@@ -1,19 +1,19 @@
-# src/application/ports/rag_port.py
-# Propósito: Define el puerto de entrada principal para interactuar con el sistema RAG.
-
 from abc import ABC, abstractmethod
-from typing import List
-from src.domain.models import Answer, Document
+from typing import Any
 
-class RagPort(ABC):
-    # Propósito: Interfaz que expone las funcionalidades principales del sistema RAG.
+
+class RAGPort(ABC):
     @abstractmethod
-    def query(self, question: str) -> Answer:
-        # Propósito: Consulta el sistema RAG con una pregunta y devuelve una Answer.
+    def ingest_document(self, file_path: str) -> None:
+        """Procesa e indexa un documento individual."""
         pass
 
     @abstractmethod
-    def ingest_documents(self, file_paths: List[str]) -> List[str]:
-        # Propósito: Ingesta documentos de rutas de archivo específicas en el sistema RAG.
-        # Retorna una lista de IDs para los documentos ingeridos.
+    def ingest_directory(self, dir_path: str) -> None:
+        """Procesa e indexa todos los documentos de un directorio."""
+        pass
+
+    @abstractmethod
+    def ask(self, question: str) -> dict[str, Any]:
+        """Pregunta al sistema basándose en los documentos indexados."""
         pass

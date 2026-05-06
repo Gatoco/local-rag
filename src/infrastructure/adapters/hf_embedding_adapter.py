@@ -1,22 +1,27 @@
-# src/infrastructure/adapters/hf_embedding_adapter.py
-# Propósito: Adaptador para generar incrustaciones utilizando modelos de Hugging Face.
+from typing import Any
 
-from typing import List
+from langchain_huggingface import HuggingFaceEmbeddings
+
 from src.domain.ports.embedding_port import EmbeddingPort
 
+
 class HFEmbeddingAdapter(EmbeddingPort):
-    # Propósito: Implementa el EmbeddingPort utilizando modelos de Hugging Face (sentence-transformers).
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
-        # Propósito: Inicializa el adaptador de embeddings de Hugging Face con un modelo específico.
-        # Cargar el modelo de embeddings de Hugging Face.
-        pass
+        """
+        Inicializa el adaptador de Hugging Face usando la librería moderna.
+        """
+        # Configuramos el modelo para ejecutarse localmente
+        self.model = HuggingFaceEmbeddings(
+            model_name=model_name,
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
 
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        # Propósito: Genera incrustaciones para una lista de textos.
-        # Utilizar el modelo de embeddings cargado para generar las incrustaciones.
-        pass
+    def get_embeddings_model(self) -> Any:
+        return self.model
 
-    def embed_query(self, text: str) -> List[float]:
-        # Propósito: Genera una incrustación para un solo texto de consulta.
-        # Utilizar el modelo de embeddings cargado para generar la incrustación.
-        pass
+    def embed_query(self, text: str) -> list[float]:
+        return self.model.embed_query(text)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self.model.embed_documents(texts)

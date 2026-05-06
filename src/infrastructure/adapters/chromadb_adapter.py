@@ -1,38 +1,53 @@
-# src/infrastructure/adapters/chromadb_adapter.py
-# Propósito: Adaptador para la base de datos vectorial ChromaDB.
+from typing import Any
 
-from typing import List, Dict, Any
-from src.domain.models import Document
+from langchain_community.vectorstores import Chroma
+
 from src.domain.ports.document_store_port import DocumentStorePort
-from src.domain.ports.embedding_port import EmbeddingPort # Necesario para la inicialización
+from src.domain.ports.embedding_port import EmbeddingPort
+
 
 class ChromaDBAdapter(DocumentStorePort):
-    # Propósito: Implementa el DocumentStorePort para ChromaDB.
-    def __init__(self, embedding_model: EmbeddingPort, persist_directory: str = "./chroma_db"):
-        # Propósito: Inicializa el adaptador ChromaDB, requiere un EmbeddingPort y un directorio de persistencia.
-        # Guardar el modelo de embeddings y el directorio de persistencia.
-        # Inicializar o cargar la base de datos ChromaDB.
-        pass
+    def __init__(self, embedding_port: EmbeddingPort, persist_directory: str = "./chroma_db", collection_name: str = "local_rag_docs"):
+        """
+        Inicializa la base de datos vectorial ChromaDB.
 
-    def add_documents(self, documents: List[Document]) -> List[str]:
-        # Propósito: Añade documentos al store de ChromaDB, generando sus incrustaciones.
-        # Convertir Documentos de dominio a Documentos de LangChain.
-        # Añadir documentos a ChromaDB (crear si no existe, o añadir a existente).
-        # Persistir los cambios en disco.
-        # Retornar los IDs de los documentos añadidos.
-        pass
+        Args:
+            embedding_port (EmbeddingPort): El adaptador de embeddings que usaremos.
+            persist_directory (str): Ruta local donde se guardarán los datos (persistentes).
+            collection_name (str): Nombre de la colección dentro de ChromaDB.
+        """
+        self.embedding_model = embedding_port.get_embeddings_model()
+        self.persist_directory = persist_directory
+        self.collection_name = collection_name
 
-    def search_documents(self, query_embedding: List[float], k: int = 4) -> List[Document]:
-        # Propósito: Busca documentos relevantes en ChromaDB basados en una incrustación de consulta.
-        # Verificar si ChromaDB está inicializada.
-        # Realizar la búsqueda de similitud.
-        # Convertir documentos de LangChain a Documentos de dominio.
-        # Retornar los documentos relevantes.
-        pass
+        # Cargamos la base de datos (o la creamos si no existe)
+        self.vector_store = Chroma(
+            collection_name=self.collection_name,
+            embedding_function=self.embedding_model,
+            persist_directory=self.persist_directory
+        )
 
-    def delete_document(self, document_id: str):
-        # Propósito: Elimina un documento específico de ChromaDB por su ID.
-        # Verificar si ChromaDB está inicializada.
-        # Eliminar el documento por ID de ChromaDB.
-        # Persistir los cambios en disco.
-        pass
+    def add_documents(self, documents: list[Any], ids: list[str] = None, batch_size: int = 500):
+        """
+        Añade una lista de documentos al almacén vectorial en lotes.
+
+        Args:
+            documents: Lista de documentos a añadir
+            ids: Lista de IDs para los documentos (opcional)
+            batch_size: Tamaño del lote para evitar límites de ChromaDB (default: 500)
+        """
+        # Dividir en batches para evitar límite de ChromaDB
+        for i in range(0, len(documents), batch_size):
+            batch_docs = documents[i:i + batch_size]
+            batch_ids = ids[i:i + batch_size] if ids else None
+            self.vector_store.add_documents(documents=batch_docs, ids=batch_ids)
+
+    def search_similar(self, query: str, k: int = 4) -> list[Any]:
+        """Busca los documentos más parecidos semánticamente a la consulta."""
+        return self.vector_store.similarity_search(query, k=k)
+
+    def get_retriever(self, search_kwargs: dict[str, Any] = None) -> Any:
+        """Devuelve un objeto retriever que LangChain usará en la pipeline RAG."""
+        if search_kwargs is None:
+            search_kwargs = {"k": 4} # Por defecto recuperamos 4 fragmentos de texto
+        return self.vector_store.as_retriever(search_kwargs=search_kwargs)

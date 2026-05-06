@@ -1,122 +1,49 @@
 # Plan de Mejoras del Proyecto
 
-## Prioridad: Crítica
+## ✅ Completado
 
-### 1. CI/CD Pipeline
-
-**Problema:** No existe pipeline de automatización para tests, linting o despliegue.
-
-**Solución propuesta:**
-
-```yaml
-# .github/workflows/ci.yml
-name: CI
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Run tests
-        run: pytest tests/ -v --cov=src
-      - name: Run linting
-        run: ruff check src/
-```
-
-**Archivos a crear:**
-- `.github/workflows/ci.yml`
-- `.github/workflows/lint.yml`
+### 1. CI/CD Pipeline ✅
+- Pipeline en `.github/workflows/ci.yml`
+- Tests con coverage
+- Ruff lint + mypy typecheck
+- Docker build
 
 ---
+
+## Prioridad: Crítica (Pendiente)
 
 ### 2. Testing - Aumentar Coverage
 
 **Problema:** Coverage insuficiente. Muchos adapters tienen smoke tests skippeados.
 
 **Acciones:**
-- [ ] Activar tests en `tests/integration/test_rag_service.py`
 - [ ] Agregar tests para `SemanticCache`
-- [ ] Agregar tests para `ChromaDBAdapter`
 - [ ] Agregar tests de seguridad (JWT, rate limiting)
-- [ ] Configurar coverage report con `coverage.toml`
-
-**Comando para verificar coverage:**
-```bash
-pytest tests/ --cov=src --cov-report=html --cov-report=term
-```
+- [ ] Coverage real: ejecutar `pytest tests/ --cov=src --cov-report=html`
 
 ---
 
 ## Prioridad: Alta
 
-### 3. Seguridad - Secretos y Credenciales
+### 3. Seguridad - Secretos y Credenciales ✅
 
-**Problema:** Secretos con valores por defecto débiles.
+**Estado:** Completado
 
-**Cambios en `src/infrastructure/security/auth.py`:**
-```python
-# ANTES (inseguro)
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "tu-secret-key-cambia-en-produccion")
-
-# DESPUÉS (validación obligatoria)
-SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-if not SECRET_KEY or SECRET_KEY == "tu-secret-key-cambia-en-produccion":
-    raise ValueError("JWT_SECRET_KEY must be set to a secure value in production")
-```
-
-**Cambios en `docker-compose.yml`:**
-```yaml
-# ANTES (inseguro)
-ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-
-# DESPUÉS (sin default, obligatorio)
-ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
-```
-
-**Acciones:**
-- [ ] Eliminar defaults débiles en docker-compose.yml
-- [ ] Validar SECRET_KEY en auth.py
-- [ ] Agregar validación de password strength
+**Cambios:**
+- Secretos obligatorios via env vars (JWT_SECRET_KEY, ADMIN_PASSWORD, USER_PASSWORD)
+- Rate limiting con Redis (RedisRateLimiter)
+- Usuarios persistidos en SQLite
 
 ---
 
-### 4. Escalabilidad - Rate Limiter Distribuido
+### 4. Rate Limiting Distribuido ✅
 
-**Problema:** Rate limiter in-memory no funciona con múltiples instancias.
+**Estado:** Completado
 
-**Solución propuesta:**
-```python
-# Usar Redis para rate limiting distribuido
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from slowapi.contrib.redis import RedisRateLimiter
-
-limiter = RedisRateLimiter(
-    redis_url="redis://localhost:6379",
-    default_limits=["100/day", "50/hour"]
-)
-```
-
-**Acciones:**
-- [ ] Implementar `DistributedRateLimiter` usando Redis
-- [ ] Actualizar middleware de rate limiting
-- [ ] Integrar con docker-compose.yml (ya tiene Redis configurado)
-
----
-
-### 5. Caché Semántico - Integración y Mejora
-
-**Problema:**
-- Caché no está integrada en la API principal
-- Usa hash SHA256 en lugar de semantic similarity
-
-**Acciones:**
-- [ ] Integrar `RAGServiceWithCache` en `run_api.py`
-- [ ] Considerar usar embeddings para similarity en cache
-- [ ] Agregar endpoint para invalidar caché
+**Cambios:**
+- `RedisRateLimiter` implementado usando Redis
+- Sliding window algorithm
+- Headers X-RateLimit-* incluidos en respuestas
 
 ---
 

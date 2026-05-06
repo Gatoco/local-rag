@@ -24,8 +24,25 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
-# Configuración
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "tu-secret-key-cambia-en-produccion")
+# Configuración - Secretos obligatorios
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+USER_PASSWORD = os.getenv("USER_PASSWORD")
+
+# Validar que todos los secretos están configurados
+_missing = []
+if not SECRET_KEY:
+    _missing.append("JWT_SECRET_KEY")
+if not ADMIN_PASSWORD:
+    _missing.append("ADMIN_PASSWORD")
+if not USER_PASSWORD:
+    _missing.append("USER_PASSWORD")
+
+if _missing:
+    raise ValueError(
+        f"Secrets not configured. Set the following environment variables: {', '.join(_missing)}"
+    )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "60"))
 
@@ -37,24 +54,22 @@ security = HTTPBearer(auto_error=False)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# USUARIOS (En producción usar base de datos)
+# USUARIOS (Base de datos SQLite)
 # ═══════════════════════════════════════════════════════════════════════════
 
-# Usuarios por defecto (en producción usar DB)
-USERS_DB = {
-    "admin": {
-        "username": "admin",
-        "hashed_password": pwd_context.hash(os.getenv("ADMIN_PASSWORD", "admin123")),
-        "disabled": False,
-        "role": "admin",
-    },
-    "user": {
-        "username": "user",
-        "hashed_password": pwd_context.hash(os.getenv("USER_PASSWORD", "user123")),
-        "disabled": False,
-        "role": "user",
-    }
-}
+def _init_users_from_env():
+    """Inicializa usuarios desde environment variables si no existen."""
+    from src.infrastructure.security.database import get_user_repository
+
+    repo = get_user_repository()
+    admin = repo.get_user("admin")
+    if not admin:
+        repo.create_user("admin", ADMIN_PASSWORD, role="admin")
+    user = repo.get_user("user")
+    if not user:
+        repo.create_user("user", USER_PASSWORD, role="user")
+
+_init_users_from_env()
 
 
 class User:
@@ -69,6 +84,16 @@ class User:
 
     def is_admin(self) -> bool:
         return self.role == "admin"
+
+
+def _user_from_record(record) -> User:
+    """Convierte UserRecord a User."""
+    return User(
+        username=record.username,
+        hashed_password=record.hashed_password,
+        disabled=record.disabled,
+        role=record.role
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -87,21 +112,24 @@ def get_password_hash(password: str) -> str:
 
 def get_user(username: str) -> User | None:
     """Obtiene un usuario por username."""
-    if username not in USERS_DB:
-        return None
-
-    user_data = USERS_DB[username]
-    return User(**user_data)
+    from src.infrastructure.security.database import get_user_repository
+    repo = get_user_repository()
+    record = repo.get_user(username)
+    if record:
+        return _user_from_record(record)
+    return None
 
 
 def authenticate_user(username: str, password: str) -> User | None:
     """Autentica un usuario con credenciales."""
-    user = get_user(username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
+    from src.infrastructure.security.database import get_user_repository
+    repo = get_user_repository()
+    record = repo.get_user(username)
+    if not record:
+        return None
+    if not verify_password(password, record.hashed_password):
+        return None
+    return _user_from_record(record)
 
 
 def create_access_token(data: dict[str, Any],

@@ -47,6 +47,7 @@ pydantic-settings>=2.1.0
 python-jose[cryptography]>=3.3.0  # JWT
 passlib[bcrypt]>=1.7.4,<4.1.0  # Password hashing
 python-multipart>=0.0.6  # Form data para auth
+redis>=5.0.0  # Rate limiting distribuido
 
 # UI Web (Streamlit)
 streamlit>=1.30.0

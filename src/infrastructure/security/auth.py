@@ -21,7 +21,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from pydantic import BaseModel
 
 # Configuración - Secretos obligatorios
@@ -46,8 +47,8 @@ if _missing:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "60"))
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing con argon2
+ph = PasswordHasher()
 
 # Security scheme
 security = HTTPBearer(auto_error=False)
@@ -102,12 +103,16 @@ def _user_from_record(record) -> User:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica una contraseña contra su hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        ph.verify(hashed_password, plain_password)
+        return True
+    except VerifyMismatchError:
+        return False
 
 
 def get_password_hash(password: str) -> str:
     """Genera hash de contraseña."""
-    return pwd_context.hash(password)
+    return ph.hash(password)
 
 
 def get_user(username: str) -> User | None:

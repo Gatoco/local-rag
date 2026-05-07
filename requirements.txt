@@ -46,6 +46,7 @@ pydantic-settings>=2.1.0
 # Seguridad
 python-jose[cryptography]>=3.3.0  # JWT
 passlib>=1.7.4  # Password hashing
+bcrypt>=3.1.7,<4.0  # Password hashing backend (passlib requiere <4.0)
 python-multipart>=0.0.6  # Form data para auth
 redis>=5.0.0  # Rate limiting distribuido
 

@@ -3,7 +3,7 @@ Seguridad y autenticación JWT para la API REST.
 
 Proporciona:
 - Autenticación con JWT tokens
-- Hash de contraseñas con bcrypt
+- Hash de contraseñas con argon2
 - Usuarios para acceso a la API
 - Rate limiting por usuario
 
@@ -18,11 +18,11 @@ import os
 from datetime import datetime, timedelta
 from typing import Any
 
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
 from pydantic import BaseModel
 
 # Configuración - Secretos obligatorios

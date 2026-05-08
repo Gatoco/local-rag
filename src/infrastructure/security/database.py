@@ -23,7 +23,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
 
 ph = PasswordHasher()
 

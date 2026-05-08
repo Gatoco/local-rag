@@ -3,7 +3,16 @@ import os
 from typing import Any
 
 from langchain.schema import Document
-from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader, TextLoader
+from langchain_community.document_loaders import (
+    BSHTMLLoader,
+    CSVLoader,
+    Docx2txtLoader,
+    PyPDFLoader,
+    TextLoader,
+    UnstructuredExcelLoader,
+    UnstructuredImageLoader,
+    UnstructuredPowerPointLoader,
+)
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.domain.ports.document_loader_port import DocumentLoaderPort
@@ -38,17 +47,23 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
         elif file_path.endswith('.txt'):
             loader = TextLoader(file_path, encoding="utf-8")
         elif file_path.endswith('.md'):
-            # Markdown: cargar como texto plano
             loader = TextLoader(file_path, encoding="utf-8")
         elif file_path.endswith('.json'):
-            # JSON: convertir a formato legible
             return self._load_json_as_documents(file_path)
+        elif file_path.endswith(('.xlsx', '.xls')):
+            loader = UnstructuredExcelLoader(file_path, mode="elements")
+        elif file_path.endswith('.pptx'):
+            loader = UnstructuredPowerPointLoader(file_path, mode="elements")
+        elif file_path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp')):
+            loader = UnstructuredImageLoader(file_path, mode="elements")
+        elif file_path.endswith(('.html', '.htm')):
+            loader = BSHTMLLoader(file_path)
+        elif file_path.endswith('.csv'):
+            loader = CSVLoader(file_path, source_column="filename")
         else:
             raise ValueError(f"Formato de archivo no soportado: {file_path}")
 
-        # Cargamos los datos
         docs = loader.load()
-        # Los dividimos en fragmentos manejables
         return self.text_splitter.split_documents(docs)
 
     def _load_json_as_documents(self, file_path: str) -> list[Any]:
@@ -118,11 +133,16 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
             raise FileNotFoundError(f"No existe el directorio: {dir_path}")
 
         all_splits = []
+        supported_extensions = [
+            '.pdf', '.txt', '.docx', '.md', '.json',
+            '.xlsx', '.xls', '.pptx',
+            '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp',
+            '.html', '.htm', '.csv'
+        ]
         for root, _, files in os.walk(dir_path):
             for filename in files:
                 file_path = os.path.join(root, filename)
-                # Soportar más formatos: pdf, txt, docx, md, json
-                if any(file_path.lower().endswith(ext) for ext in ['.pdf', '.txt', '.docx', '.md', '.json']):
+                if any(file_path.lower().endswith(ext) for ext in supported_extensions):
                     try:
                         splits = self.load_and_split(file_path)
                         all_splits.extend(splits)

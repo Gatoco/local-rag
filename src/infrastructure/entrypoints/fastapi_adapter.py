@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from src.application.services.rag_service import RAGService
+from src.infrastructure.adapters.cloud_llm_adapter import PROVIDER_CONFIG
 from src.infrastructure.entrypoints.api_schemas import (
     DeleteDocumentRequest,
     DeleteResponse,
@@ -39,7 +40,6 @@ from src.infrastructure.entrypoints.api_schemas import (
     QueryResponse,
     SourceDocument,
 )
-from src.infrastructure.adapters.cloud_llm_adapter import CloudLLMAdapter, PROVIDER_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
         """
         try:
             # Obtener configuración del modelo desde RAGService
-            model_info = rag_service.llm.model_path if hasattr(rag_service.llm, 'model_path') else "unknown"
+            model_info = rag_service.chain.llm.model_path if hasattr(rag_service.chain, 'llm') and hasattr(rag_service.chain.llm, 'model_path') else "unknown"
             embedding_model = "sentence-transformers/all-MiniLM-L6-v2"  # Podría obtenerse del adapter
 
             # Obtener conteo de documentos
@@ -203,7 +203,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 sources=sources,
                 question=request.question,
                 latency_ms=round(latency_ms, 2),
-                model=os.path.basename(rag_service.llm.model_path) if hasattr(rag_service.llm, 'model_path') else "unknown",
+                model=os.path.basename(rag_service.chain.llm.model_path) if hasattr(rag_service.chain, 'llm') and hasattr(rag_service.chain.llm, 'model_path') else "unknown",
             )
 
         except Exception as e:
@@ -235,9 +235,9 @@ def create_router(rag_service: RAGService) -> APIRouter:
 
         try:
             # Obtener adapter y usar streaming nativo
-            if hasattr(rag_service.llm, 'generate_stream'):
+            if hasattr(rag_service.chain, 'llm') and hasattr(rag_service.chain.llm, 'generate_stream'):
                 return StreamingResponse(
-                    stream_generator(rag_service.llm, request.question, request.max_tokens),
+                    stream_generator(rag_service.chain.llm, request.question, request.max_tokens),
                     media_type="text/event-stream",
                     headers={
                         "Cache-Control": "no-cache",

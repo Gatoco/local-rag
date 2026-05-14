@@ -17,3 +17,8 @@ class RAGPort(ABC):
     def ask(self, question: str) -> dict[str, Any]:
         """Pregunta al sistema basándose en los documentos indexados."""
         pass
+
+    @abstractmethod
+    def get_document_count(self) -> int:
+        """Retorna el número de documentos en el índice."""
+        pass

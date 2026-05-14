@@ -8,7 +8,7 @@ Se mantiene por compatibilidad y como referencia de implementación.
 """
 
 from collections.abc import Generator
-from typing import Any
+from typing import Any, cast
 
 from langchain_ollama import ChatOllama
 
@@ -60,8 +60,8 @@ class OllamaLLMAdapter(LLMPort):
 
     def generate_response(self, prompt: str, max_tokens: int | None = None) -> str:
         """Genera una respuesta simple."""
-        # Nota: Ollama no soporta max_tokens directamente en ChatOllama
-        return self.llm.invoke(prompt).content
+        response = self.llm.invoke(prompt)
+        return cast(str, response.content)
 
     def generate_stream(self, prompt: str, max_tokens: int | None = None) -> Generator[str, None, None]:
         """

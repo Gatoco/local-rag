@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -10,7 +10,7 @@ class HFEmbeddingAdapter(EmbeddingPort):
         """
         Inicializa el adaptador de Hugging Face usando la librería moderna.
         """
-        # Configuramos el modelo para ejecutarse localmente
+        self.model_name = model_name
         self.model = HuggingFaceEmbeddings(
             model_name=model_name,
             model_kwargs={'device': 'cpu'},
@@ -21,7 +21,9 @@ class HFEmbeddingAdapter(EmbeddingPort):
         return self.model
 
     def embed_query(self, text: str) -> list[float]:
-        return self.model.embed_query(text)
+        result = self.model.embed_query(text)
+        return cast(list[float], result)
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return self.model.embed_documents(texts)
+        result = self.model.embed_documents(texts)
+        return cast(list[list[float]], result)

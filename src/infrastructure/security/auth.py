@@ -16,7 +16,7 @@ Uso:
 
 import os
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -112,7 +112,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """Genera hash de contraseña."""
-    return ph.hash(password)
+    result = ph.hash(password)
+    return cast(str, result)
 
 
 def get_user(username: str) -> User | None:
@@ -158,8 +159,7 @@ def create_access_token(data: dict[str, Any],
 
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-    return encoded_jwt
+    return cast(str, encoded_jwt)
 
 
 def verify_token(token: str) -> dict[str, Any] | None:
@@ -177,7 +177,7 @@ def verify_token(token: str) -> dict[str, Any] | None:
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return cast(dict[str, Any] | None, payload)
     except JWTError:
         return None
 
@@ -214,7 +214,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    username: str = payload.get("sub")
+    username: str | None = payload.get("sub")
     if username is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

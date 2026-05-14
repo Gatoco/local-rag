@@ -13,7 +13,7 @@ Características:
 """
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from src.application.ports.rag_chain_port import RAGChainPort
 from src.application.ports.rag_port import RAGPort
@@ -285,7 +285,8 @@ class RAGService(RAGPort):
         try:
             # ChromaDB tiene método _collection.count()
             if hasattr(self.doc_store, 'vector_store'):
-                return self.doc_store.vector_store._collection.count()
+                count = self.doc_store.vector_store._collection.count()
+                return cast(int, count)
             return 0
         except Exception as e:
             logger.warning(f"No se pudo obtener conteo de documentos: {e}")
@@ -313,7 +314,8 @@ class RAGService(RAGPort):
             Dict con información de la cadena
         """
         if hasattr(self.chain, 'get_chain_info'):
-            return self.chain.get_chain_info()
+            result = self.chain.get_chain_info()
+            return cast(dict[str, Any], result)
 
         return {
             "type": type(self.chain).__name__,

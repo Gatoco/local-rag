@@ -75,7 +75,7 @@ class LMStudioLLMAdapter:
             raise LMStudioConnectionError(
                 f"Cannot connect to LM Studio at {self.base_url}. "
                 f"Start LM Studio and ensure the local server is enabled."
-            )
+            ) from None
 
     def generate_response(self, prompt: str, max_tokens: int | None = None) -> str:
         """Genera respuesta sincronica."""
@@ -106,9 +106,9 @@ class LMStudioLLMAdapter:
                         if token:
                             yield token
         except httpx.TimeoutException:
-            raise LMStudioConnectionError(f"Timeout connecting to LM Studio at {self.base_url}")
+            raise LMStudioConnectionError(f"Timeout connecting to LM Studio at {self.base_url}") from None
         except Exception as e:
-            raise LMStudioConnectionError(f"Error communicating with LM Studio: {e}")
+            raise LMStudioConnectionError(f"Error communicating with LM Studio: {e}") from e
 
     def _parse_sse_token(self, data: str) -> str | None:
         """Parsea token de SSE data."""
@@ -118,7 +118,12 @@ class LMStudioLLMAdapter:
             choices = parsed.get("choices", [])
             if choices:
                 delta = choices[0].get("delta", {})
-                return delta.get("content", "") or delta.get("text", "")
+                content = delta.get("content")
+                text = delta.get("text")
+                if content is not None:
+                    return str(content)
+                if text is not None:
+                    return str(text)
         except Exception:
             pass
         return None

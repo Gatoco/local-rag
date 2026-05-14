@@ -21,6 +21,7 @@ import os
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import cast
 
 from argon2 import PasswordHasher
 
@@ -111,13 +112,13 @@ class UserRepository:
                 "UPDATE users SET hashed_password = ? WHERE username = ?",
                 (hashed, username)
             )
-            return cursor.rowcount > 0
+            return cast(bool, cursor.rowcount > 0)
 
     def delete_user(self, username: str) -> bool:
         """Elimina un usuario."""
         with self.db.get_connection() as conn:
             cursor = conn.execute("DELETE FROM users WHERE username = ?", (username,))
-            return cursor.rowcount > 0
+            return cast(bool, cursor.rowcount > 0)
 
     def list_users(self) -> list[UserRecord]:
         """Lista todos los usuarios."""

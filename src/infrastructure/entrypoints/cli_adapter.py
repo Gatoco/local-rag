@@ -30,9 +30,9 @@ class CLIAdapter:
     def _show_progress_bar(self, current: int, total: int, width: int = 40) -> None:
         """Muestra barra de progreso."""
         if total == 0:
-            percent = 0
+            percent = 0.0
         else:
-            percent = current / total
+            percent = float(current / total)
 
         filled = int(width * percent)
         bar = '█' * filled + '░' * (width - filled)

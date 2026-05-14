@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any
+from typing import Any, cast
 
 from langchain.schema import Document
 from langchain_community.document_loaders import (
@@ -64,7 +64,8 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
             raise ValueError(f"Formato de archivo no soportado: {file_path}")
 
         docs = loader.load()
-        return self.text_splitter.split_documents(docs)
+        result = self.text_splitter.split_documents(docs)
+        return cast(list[Any], result)
 
     def _load_json_as_documents(self, file_path: str) -> list[Any]:
         """
@@ -106,7 +107,7 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
                     ))
 
         # Dividir en chunks
-        return self.text_splitter.split_documents(documents)
+        return cast(list[Any], self.text_splitter.split_documents(documents))
 
     def _dict_to_text(self, d: dict, indent: int = 0) -> str:
         """Convierte un diccionario a texto formateado."""

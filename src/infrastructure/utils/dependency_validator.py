@@ -13,6 +13,7 @@ import logging
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +156,7 @@ class DependencyValidator:
         return f"pip install {' '.join(missing_names)}"
 
 
-def validate_gguf_model(model_path: str) -> dict[str, any]:
+def validate_gguf_model(model_path: str) -> dict[str, Any]:
     """
     Valida un modelo GGUF.
 

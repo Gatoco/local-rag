@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 from langchain_community.vectorstores import Chroma
 
@@ -27,7 +27,7 @@ class ChromaDBAdapter(DocumentStorePort):
             persist_directory=self.persist_directory
         )
 
-    def add_documents(self, documents: list[Any], ids: list[str] = None, batch_size: int = 500):
+    def add_documents(self, documents: list[Any], ids: list[str] | None = None, batch_size: int = 500):
         """
         Añade una lista de documentos al almacén vectorial en lotes.
 
@@ -44,9 +44,10 @@ class ChromaDBAdapter(DocumentStorePort):
 
     def search_similar(self, query: str, k: int = 4) -> list[Any]:
         """Busca los documentos más parecidos semánticamente a la consulta."""
-        return self.vector_store.similarity_search(query, k=k)
+        result = self.vector_store.similarity_search(query, k=k)
+        return cast(list[Any], result)
 
-    def get_retriever(self, search_kwargs: dict[str, Any] = None) -> Any:
+    def get_retriever(self, search_kwargs: dict[str, Any] | None = None) -> Any:
         """Devuelve un objeto retriever que LangChain usará en la pipeline RAG."""
         if search_kwargs is None:
             search_kwargs = {"k": 4} # Por defecto recuperamos 4 fragmentos de texto

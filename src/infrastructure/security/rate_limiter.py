@@ -21,6 +21,7 @@ import logging
 import os
 import time
 from collections import defaultdict
+from typing import cast
 
 import redis
 from fastapi import Request, status
@@ -44,7 +45,7 @@ class RedisRateLimiter:
         allowed, headers = limiter.is_allowed("192.168.1.1")
     """
 
-    def __init__(self, redis_url: str = None,
+    def __init__(self, redis_url: str | None = None,
                    requests_per_minute: int = 60,
                    requests_per_hour: int = 1000):
         self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -77,7 +78,8 @@ class RedisRateLimiter:
             r = self._get_redis()
             redis_key = self._make_key(key, str(window_seconds))
             cutoff = time.time() - window_seconds
-            return r.zcount(redis_key, cutoff, '+inf')
+            count = r.zcount(redis_key, cutoff, '+inf')
+            return cast(int, count)
         except redis.ConnectionError:
             return 0
 
@@ -96,7 +98,7 @@ class RedisRateLimiter:
         except redis.ConnectionError:
             pass
 
-    def is_allowed(self, key: str, endpoint: str = None) -> tuple[bool, dict[str, str]]:
+    def is_allowed(self, key: str, endpoint: str | None = None) -> tuple[bool, dict[str, str]]:
         """
         Verifica si el request está permitido.
 
@@ -189,7 +191,7 @@ class RateLimiter:
         """Registra un nuevo request."""
         self._requests[key].append(time.time())
 
-    def is_allowed(self, key: str, endpoint: str = None) -> tuple[bool, dict[str, str]]:
+    def is_allowed(self, key: str, endpoint: str | None = None) -> tuple[bool, dict[str, str]]:
         """
         Verifica si un request está permitido.
 
@@ -268,7 +270,7 @@ class RateLimiter:
             "burst_limit": self.burst_limit,
         }
 
-    def reset(self, key: str = None) -> None:
+    def reset(self, key: str | None = None) -> None:
         """Reseta el rate limit para una key o todas."""
         if key:
             self._requests[key] = []
@@ -307,8 +309,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, requests_per_minute: int = 60,
                        requests_per_hour: int = 1000,
                        burst_limit: int = 10,
-                       whitelist: list = None,
-                       redis_url: str = None):
+                       whitelist: list | None = None,
+                       redis_url: str | None = None):
         super().__init__(app)
         self.limiter = RedisRateLimiter(
             redis_url=redis_url,
@@ -363,7 +365,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 def rate_limit_middleware(requests_per_minute: int = 60,
                           requests_per_hour: int = 1000,
                           burst_limit: int = 10,
-                          whitelist: list = None):
+                          whitelist: list | None = None):
     """
     Factory para crear middleware de rate limiting.
 

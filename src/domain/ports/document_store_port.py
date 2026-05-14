@@ -4,7 +4,7 @@ from typing import Any
 
 class DocumentStorePort(ABC):
     @abstractmethod
-    def add_documents(self, documents: list[Any], ids: list[str] = None):
+    def add_documents(self, documents: list[Any], ids: list[str] | None = None):
         """Agrega documentos (ya procesados) al almacén vectorial."""
         pass
 
@@ -14,6 +14,6 @@ class DocumentStorePort(ABC):
         pass
 
     @abstractmethod
-    def get_retriever(self, search_kwargs: dict[str, Any] = None) -> Any:
+    def get_retriever(self, search_kwargs: dict[str, Any] | None = None) -> Any:
         """Devuelve un objeto 'retriever' compatible con LangChain."""
         pass

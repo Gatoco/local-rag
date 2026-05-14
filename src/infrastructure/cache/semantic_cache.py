@@ -26,7 +26,7 @@ import logging
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ class SemanticCache:
         self.hits += 1
         logger.debug(f"Cache hit: {query[:50]}... (access_count={entry.access_count})")
 
-        return entry.value
+        return cast(dict[str, Any] | None, entry.value)
 
     def set(self, query: str, value: dict[str, Any]) -> None:
         """
@@ -312,13 +312,14 @@ class RAGServiceWithCache:
         """
         if not self.enabled:
             logger.debug("Cache disabled, executing RAG directly")
-            return self.rag_service.ask(question)
+            result = self.rag_service.ask(question)
+            return cast(dict[str, Any], result)
 
         # Intentar caché
         cached_result = self.cache.get(question)
         if cached_result:
             logger.info(f"Cache hit for query: {question[:50]}...")
-            return cached_result
+            return cast(dict[str, Any], cached_result)
 
         # Ejecutar RAG
         logger.info(f"Cache miss, executing RAG for: {question[:50]}...")
@@ -327,7 +328,7 @@ class RAGServiceWithCache:
         # Guardar en caché
         self.cache.set(question, result)
 
-        return result
+        return cast(dict[str, Any], result)
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Obtiene estadísticas de la caché."""

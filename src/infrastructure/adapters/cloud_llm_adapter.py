@@ -7,15 +7,22 @@ API keys are read from environment variables (.env file).
 
 import logging
 import os
-import time
 from collections.abc import Generator
-from typing import Any
+from typing import Any, TypedDict
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-PROVIDER_CONFIG = {
+class ProviderConfig(TypedDict):
+    api_key_env: str
+    base_url: str
+    models: list[str]
+    default_model: str
+    supports_streaming: bool
+
+
+PROVIDER_CONFIG: dict[str, ProviderConfig] = {
     "openai": {
         "api_key_env": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
@@ -111,7 +118,7 @@ class CloudLLMAdapter:
 
         config = PROVIDER_CONFIG[self.provider]
         self.model = model or config["default_model"]
-        self.api_key = api_key or os.environ.get(config["api_key_env"])
+        self.api_key = api_key or os.environ.get(config["api_key_env"]) or None
         if not self.api_key:
             raise CloudLLMConfigurationError(
                 f"API key no encontrada. Configura {config['api_key_env']} en .env "
@@ -148,13 +155,13 @@ class CloudLLMAdapter:
         except httpx.TimeoutException:
             raise CloudLLMConnectionError(
                 f"Timeout ({self.timeout}s) conectando a {self.provider}"
-            )
+            ) from None
         except httpx.HTTPStatusError as e:
             raise CloudLLMConnectionError(
                 f"Error HTTP {e.response.status_code} de {self.provider}: {e.response.text[:200]}"
-            )
+            ) from e
         except Exception as e:
-            raise CloudLLMConnectionError(f"Error de conexión con {self.provider}: {e}")
+            raise CloudLLMConnectionError(f"Error de conexión con {self.provider}: {e}") from e
 
     def _build_payload(self, prompt: str, max_tokens: int | None) -> dict[str, Any]:
         """Construye el payload según el provider."""
@@ -179,21 +186,22 @@ class CloudLLMAdapter:
 
     def _build_headers(self) -> dict[str, str]:
         """Construye headers según el provider."""
-        headers = {"Content-Type": "application/json"}
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        api_key = self.api_key if self.api_key is not None else ""
 
         if self.provider == "openai":
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["Authorization"] = f"Bearer {api_key}"
         elif self.provider == "anthropic":
-            headers["x-api-key"] = self.api_key
+            headers["x-api-key"] = api_key
             headers["anthropic-version"] = "2023-06-01"
         elif self.provider == "google":
-            headers["x-goog-api-key"] = self.api_key
+            headers["x-goog-api-key"] = api_key
         elif self.provider == "groq":
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["Authorization"] = f"Bearer {api_key}"
         elif self.provider == "minimax":
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["Authorization"] = f"Bearer {api_key}"
         elif self.provider == "deepseek":
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["Authorization"] = f"Bearer {api_key}"
 
         return headers
 
@@ -205,7 +213,12 @@ class CloudLLMAdapter:
             choices = parsed.get("choices", [])
             if choices:
                 delta = choices[0].get("delta", {})
-                return delta.get("content", "") or delta.get("text", "")
+                content = delta.get("content")
+                text = delta.get("text")
+                if content is not None:
+                    return str(content)
+                if text is not None:
+                    return str(text)
         except Exception:
             pass
         return None
@@ -234,7 +247,8 @@ class CloudLLMAdapter:
         provider = provider.lower()
         if provider not in PROVIDER_CONFIG:
             return []
-        return PROVIDER_CONFIG[provider]["models"]
+        config = PROVIDER_CONFIG[provider]
+        return list(config["models"])
 
     @classmethod
     def get_default_model(cls, provider: str) -> str | None:
@@ -242,4 +256,5 @@ class CloudLLMAdapter:
         provider = provider.lower()
         if provider not in PROVIDER_CONFIG:
             return None
-        return PROVIDER_CONFIG[provider]["default_model"]
+        config = PROVIDER_CONFIG[provider]
+        return str(config["default_model"]) if config["default_model"] else None

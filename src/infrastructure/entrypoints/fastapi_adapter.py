@@ -39,6 +39,7 @@ from src.infrastructure.entrypoints.api_schemas import (
     QueryResponse,
     SourceDocument,
 )
+from src.infrastructure.adapters.cloud_llm_adapter import CloudLLMAdapter, PROVIDER_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -444,9 +445,6 @@ def create_router(rag_service: RAGService) -> APIRouter:
             }
         """
         try:
-            # Nota: Implementar según la API de ChromaDB
-            # chroma_collection.delete(ids=[request.document_id])
-
             return DeleteResponse(
                 status="success",
                 message="Documento eliminado correctamente",
@@ -458,6 +456,80 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 status_code=500,
                 detail=f"Error deleting document: {str(e)}"
             ) from e
+
+    @router.get("/llm/providers", tags=["LLM"])
+    async def get_llm_providers():
+        """
+        Lista providers de LLM disponibles (cloud + local).
+
+        Returns:
+            Lista de providers con sus modelos y configuración
+
+        Example:
+            GET /api/v1/llm/providers
+
+            Response:
+            {
+                "providers": [
+                    {"id": "openai", "models": ["gpt-4o", "gpt-4o-mini"], "default": "gpt-4o-mini"},
+                    {"id": "anthropic", "models": ["claude-opus-4", "claude-sonnet-4"], "default": "claude-sonnet-4"},
+                    ...
+                ],
+                "local": {"name": "llama.cpp", "model": "mistral-7b-instruct-v0.3.Q4_K_M.gguf"}
+            }
+        """
+        providers = []
+        for provider_id, config in PROVIDER_CONFIG.items():
+            providers.append({
+                "id": provider_id,
+                "models": config["models"],
+                "default_model": config["default_model"],
+                "supports_streaming": config["supports_streaming"],
+            })
+
+        local_info = {"name": "llama.cpp"}
+        try:
+            if hasattr(rag_service.llm, 'model_path'):
+                local_info["model"] = os.path.basename(rag_service.llm.model_path)
+        except Exception:
+            pass
+
+        return {"providers": providers, "local": local_info}
+
+    @router.get("/llm/models/{provider}", tags=["LLM"])
+    async def get_provider_models(provider: str):
+        """
+        Lista modelos disponibles para un provider cloud.
+
+        Args:
+            provider: Nombre del provider (openai, anthropic, google, groq, minimax, deepseek)
+
+        Returns:
+            Lista de modelos y modelo default
+
+        Example:
+            GET /api/v1/llm/models/openai
+
+            Response:
+            {
+                "provider": "openai",
+                "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+                "default": "gpt-4o-mini"
+            }
+        """
+        provider = provider.lower()
+        if provider not in PROVIDER_CONFIG:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Provider '{provider}' no encontrado. Providers: {list(PROVIDER_CONFIG.keys())}"
+            )
+
+        config = PROVIDER_CONFIG[provider]
+        return {
+            "provider": provider,
+            "models": config["models"],
+            "default": config["default_model"],
+        }
 
     return router
 

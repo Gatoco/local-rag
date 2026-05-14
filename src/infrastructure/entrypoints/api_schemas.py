@@ -22,13 +22,19 @@ class QueryRequest(BaseModel):
         top_k: Número de documentos a recuperar (default: 4)
         max_tokens: Máximo de tokens en la respuesta (default: 512)
         stream: Si True, retorna respuesta en streaming (default: False)
+        provider: Proveedor cloud (openai, anthropic, google, groq, minimax, deepseek). None = local.
+        api_key: API key para provider cloud (None = usa .env)
+        model: Modelo específico del provider (None = usa default)
 
     Example:
         {
             "question": "¿Qué es el cálculo diferencial?",
             "top_k": 4,
             "max_tokens": 512,
-            "stream": false
+            "stream": false,
+            "provider": "openai",
+            "api_key": "sk-...",
+            "model": "gpt-4o-mini"
         }
     """
 
@@ -57,6 +63,21 @@ class QueryRequest(BaseModel):
         default=False,
         description="Si True, retorna respuesta en streaming",
         examples=[False]
+    )
+    provider: str | None = Field(
+        default=None,
+        description="Proveedor cloud (openai, anthropic, google, groq, minimax, deepseek). None = local",
+        examples=[None, "openai", "minimax"]
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key para provider cloud. None = usa variable de entorno",
+        examples=[None]
+    )
+    model: str | None = Field(
+        default=None,
+        description="Modelo específico del provider. None = usa default",
+        examples=[None, "gpt-4o-mini", "MiniMax-M2.7-8k"]
     )
 
     @field_validator('question')

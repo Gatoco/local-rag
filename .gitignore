@@ -3,7 +3,16 @@
 venv/
 env/
 ENV/
+.venv312/
+.venv.bak/
+.venv2517/
+
+# Environment files (SECURITY: never commit these)
 .env
+.env.local
+.env.production
+.env.cybersec
+.env.*.local
 
 # Python
 __pycache__/
@@ -36,6 +45,7 @@ MANIFEST
 htmlcov/
 .tox/
 .hypothesis/
+tests/.pytest_cache/
 
 # IDE
 .vscode/
@@ -45,9 +55,12 @@ htmlcov/
 *~
 .DS_Store
 *.iml
+.bazaar/
+.swp.swp
 
 # Database
 chroma_db/
+chroma_db_cybersec/
 *.db
 *.sqlite
 *.sqlite3
@@ -57,18 +70,47 @@ logs/
 *.log
 *.log.*
 
-# Data
-data/raw/*.csv
-data/raw/*.pdf
-data/raw/*.xlsx
-data/raw/*.docx
-data/processed/
+# History (contains sensitive conversation data)
+history/
+
+# Data directories
+data/
+docs_to_ingest/
+test_chroma/
+test_final_chroma/
+
+# Models (large files)
+models/
+*.gguf
+*.bin
+
+# UI build outputs
+ui/build/
+ui/dist/
+ui/node_modules/
+
+# Environment specific
+.python-version
+.tool-versions
+.qwen/
+TODO_ISSUES.md
+
+# Root level scripts to ignore (these are helpers, not core)
+check_python.py
+test_pipeline.py
+test_fixes.py
+test_rag_diagnostic.py
+demo_rag.py
+start_app.py
+ingest_all.py
+ingest_documents.py
+ingest_cybersec_data.py
+download_cybersec_data.py
+download_math_data.py
+download_model.py
+prompts/
+scripts/
 
 # OS
-.DS_Store
 Thumbs.db
-
-# Project specific
-.env.local
-config.local.json
-models/*.gguf
+.DS_Store

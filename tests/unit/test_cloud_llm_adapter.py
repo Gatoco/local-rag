@@ -14,8 +14,8 @@ class TestCloudLLMAdapter:
     def test_minimax_has_correct_config(self):
         config = PROVIDER_CONFIG["minimax"]
         assert config["api_key_env"] == "MINIMAX_API_KEY"
-        assert "MiniMax-M2.7-8k" in config["models"]
-        assert config["default_model"] == "MiniMax-M2.7-8k"
+        assert "MiniMax-M2.7" in config["models"]
+        assert config["default_model"] == "MiniMax-M2.7"
 
     def test_openai_has_correct_config(self):
         config = PROVIDER_CONFIG["openai"]
@@ -25,7 +25,7 @@ class TestCloudLLMAdapter:
 
     def test_adapter_stores_provider_and_model(self, cloud_llm_minimax):
         assert cloud_llm_minimax.provider == "minimax"
-        assert cloud_llm_minimax.model == "MiniMax-M2.7-8k"
+        assert cloud_llm_minimax.model == "MiniMax-M2.7"
 
     def test_adapter_stores_custom_api_key(self):
         adapter = CloudLLMAdapter(provider="openai", api_key="sk-custom-key")
@@ -51,7 +51,7 @@ class TestCloudLLMAdapter:
 
     def test_get_default_model(self):
         default = CloudLLMAdapter.get_default_model("minimax")
-        assert default == "MiniMax-M2.7-8k"
+        assert default == "MiniMax-M2.7"
 
     def test_invalid_provider_raises_error(self):
         with pytest.raises(CloudLLMConfigurationError):
@@ -65,7 +65,7 @@ class TestCloudLLMAdapter:
     def test_get_model_info(self, cloud_llm_minimax):
         info = cloud_llm_minimax.get_model_info()
         assert info["provider"] == "minimax"
-        assert info["model"] == "MiniMax-M2.7-8k"
+        assert info["model"] == "MiniMax-M2.7"
         assert info["api_key_set"] is True
         assert "timeout" in info
 

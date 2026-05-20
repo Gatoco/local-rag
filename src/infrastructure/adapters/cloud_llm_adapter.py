@@ -53,9 +53,9 @@ PROVIDER_CONFIG: dict[str, ProviderConfig] = {
     },
     "minimax": {
         "api_key_env": "MINIMAX_API_KEY",
-        "base_url": "https://api.minimax.chat/v1",
-        "models": ["MiniMax-M2.7-8k", "MiniMax-M2.7-32k", "MiniMax-Text-01"],
-        "default_model": "MiniMax-M2.7-8k",
+        "base_url": "https://api.minimax.io/v1",
+        "models": ["MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2.5-highspeed", "MiniMax-M2.1", "MiniMax-M2.1-highspeed", "MiniMax-M2"],
+        "default_model": "MiniMax-M2.7",
         "supports_streaming": True,
     },
     "deepseek": {

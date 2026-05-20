@@ -6,15 +6,20 @@ from src.domain.ports.embedding_port import EmbeddingPort
 
 
 class HFEmbeddingAdapter(EmbeddingPort):
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = "BAAI/bge-large-en-v1.5"):
         """
         Inicializa el adaptador de Hugging Face usando la librería moderna.
+
+        Modelos disponibles:
+        - BAAI/bge-large-en-v1.5 (1024 dims, mejor calidad, ~1GB)
+        - BAAI/bge-small-en-v1.5 (384 dims, rápido, buena calidad)
+        - sentence-transformers/all-MiniLM-L6-v2 (384 dims, default original)
         """
         self.model_name = model_name
         self.model = HuggingFaceEmbeddings(
             model_name=model_name,
             model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
+            encode_kwargs={'normalize_embeddings': True, 'batch_size': 16}
         )
 
     def get_embeddings_model(self) -> Any:

@@ -4,7 +4,7 @@ Sistema RAG local con soporte multi-provider (local + cloud). Arquitectura Ports
 
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-174%20passed-brightgreen.svg)](#tests)
+[![Tests](https://img.shields.io/badge/tests-114%20passed-brightgreen.svg)](#tests)
 [![Typecheck](https://img.shields.io/badge/mypy-clean-success.svg)](#typecheck)
 [![Lint](https://img.shields.io/badge/ruff-clean-success.svg)](#lint)
 
@@ -15,6 +15,7 @@ Sistema RAG local con soporte multi-provider (local + cloud). Arquitectura Ports
 - **Seguridad**: JWT auth, argon2 password hashing, rate limiting
 - **Persistência**: ChromaDB vector store en disco
 - **UI Electron**: Interfaz de escritorio para consultas
+- **CLI `mylocalrag`**: Chat interactivo con comandos `/rag`, `/index`
 
 ## Stack
 
@@ -23,12 +24,46 @@ Sistema RAG local con soporte multi-provider (local + cloud). Arquitectura Ports
 | LLM Local | llama.cpp (GGUF), LM Studio |
 | LLM Cloud | OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek |
 | Vector Store | ChromaDB |
-| Embeddings | HuggingFace Sentence Transformers |
+| Embeddings | HuggingFace BGE-Large (1024 dims) |
 | Orquestación | LangChain |
 | API | FastAPI |
 | UI | Electron |
 | Auth | JWT + argon2 |
 | Rate Limit | Redis-backed sliding window |
+
+## Modelo de Embeddings
+
+| Modelo | Dimensión | Uso |
+|--------|------------|-----|
+| BAAI/bge-large-en-v1.5 | 1024 | Producción (mejor calidad) |
+| sentence-transformers/all-MiniLM-L6-v2 | 384 | Testing/Backup |
+
+**Nota**: BGE-Large usa `batch_size=32` para encoding y procesamiento secuencial (no threading) para evitar contención de GIL en CPU.
+
+## Indexing de Documentos
+
+### Script Standalone (recomendado para datasets grandes)
+
+```bash
+python3 scripts/index_documents.py --reindex --timeout 1800 --workers 1
+```
+
+Opciones:
+- `--reindex`: Elimina colección existente antes de indexar
+- `--resume`: Continua desde donde quedó (usando manifest)
+- `--docs ./mi_directorio`: Directorio a indexar (default: ./docs_to_ingest)
+- `--workers N`: Workers para threading (default: 1, recomendado)
+- `--timeout N`: Timeout en segundos (default: 600)
+- `--batch-size N`: Docs por batch (default: 100)
+
+### REPL
+
+```bash
+python3 mylocalrag.py
+# luego: /index --reindex
+```
+
+**Nota importante**: El indexing usa procesamiento secuencial con 1 worker. No usar multi-threading con BGE-Large en CPU - causa contención de GIL y rendimiento degradado.
 
 ## Modelos Soportados
 

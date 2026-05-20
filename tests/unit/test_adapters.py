@@ -11,13 +11,19 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 import os
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # TESTS PARA LlamaCppLLMAdapter
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestLlamaCppLLMAdapter:
     """Tests para LlamaCppLLMAdapter"""
+
+    def setup_method(self):
+        """Skip tests if llama_cpp not installed."""
+        try:
+            import llama_cpp
+        except ImportError:
+            pytest.skip("llama_cpp not installed")
 
     def test_adapter_initialization(self):
         """Test: Inicializar adapter con modelo real"""

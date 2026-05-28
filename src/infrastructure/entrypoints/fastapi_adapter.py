@@ -172,15 +172,17 @@ def create_router(rag_service: RAGService) -> APIRouter:
         logger.info(f"Query received: {request.question[:100]}...")
 
         try:
-            # Ejecutar consulta
-            result = rag_service.ask(request.question)
+            result = rag_service.ask(
+                question=request.question,
+                provider=request.provider,
+                model=request.model,
+                api_key=request.api_key,
+            )
 
-            # Calcular latencia
             latency_ms = (time.time() - start_time) * 1000
             QUERY_COUNT += 1
             TOTAL_LATENCY_MS += latency_ms
 
-            # Convertir documentos fuente
             sources = []
             for doc in result.get("source_documents", []):
                 if hasattr(doc, 'page_content'):
@@ -196,6 +198,10 @@ def create_router(rag_service: RAGService) -> APIRouter:
                         id=doc.get('id'),
                     ))
 
+            model_name = request.provider or "local"
+            if request.model:
+                model_name = f"{request.provider}/{request.model}"
+
             logger.info(f"Query completed in {latency_ms:.2f}ms with {len(sources)} sources")
 
             return QueryResponse(
@@ -203,7 +209,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 sources=sources,
                 question=request.question,
                 latency_ms=round(latency_ms, 2),
-                model=os.path.basename(rag_service.chain.llm.model_path) if hasattr(rag_service.chain, 'llm') and hasattr(rag_service.chain.llm, 'model_path') else "unknown",
+                model=model_name,
             )
 
         except Exception as e:

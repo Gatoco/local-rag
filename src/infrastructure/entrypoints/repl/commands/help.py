@@ -11,45 +11,31 @@ class HelpCommand(Command):
     description = "Show this help message"
 
     def execute(self, args: list[str], context: dict[str, Any]) -> CommandResult:
-        commands = context.get("commands", {})
-
         lines = [
             "",
-            "╭─────────────────────────────────────────────╮",
-            "│          MyLocalRAG Commands               │",
-            "╰─────────────────────────────────────────────╯",
+            "[bold]Commands:[/bold]",
             "",
-            "  COMMANDS:",
-            "    /help, /?      Show this help",
-            "    /exit, /quit   Exit the REPL",
-            "    /clear        Clear the screen",
+            "  [cyan]mode[/cyan] / [cyan]m[/cyan]          Switch mode (local/cloud)",
+            "  [cyan]provider[/cyan]        Switch cloud provider",
+            "  [cyan]model[/cyan]          Switch model",
+            "  [cyan]providers[/cyan]       List available providers",
+            "  [cyan]models[/cyan]          List models for current provider",
             "",
-            "  MODEL & PROVIDER:",
-            "    /providers     List available providers",
-            "    /provider <n>  Switch provider (minimax/groq/openai/deepseek)",
-            "    /models        List models for current provider",
-            "    /model <name>  Switch model",
+            "  [cyan]rag[/cyan] [on|off]     Toggle RAG mode",
+            "  [cyan]index[/cyan] [--reindex]  Index documents",
+            "  [cyan]stats[/cyan]            Show index statistics",
             "",
-            "  RAG:",
-            "    /rag           Toggle RAG mode (on/off)",
-            "    /rag status    Show RAG status",
-            "    /rag topk <n>  Set top_k (1-20)",
-            "    /stats         Show indexed documents stats",
-            "    /index              Index ./docs_to_ingest",
-            "    /index --reindex    Re-index from scratch",
-            "    /index <dir>        Index specific directory",
+            "  [cyan]help[/cyan] / [cyan]?[/cyan]      Show this help",
+            "  [cyan]clear[/cyan]            Clear screen",
+            "  [cyan]exit[/cyan] / [cyan]quit[/cyan]   Exit",
             "",
-            "  SESSIONS:",
-            "    /session list      List saved sessions",
-            "    /session new       Create new session",
-            "    /session save      Save current session",
+            "[bold]Examples:[/bold]",
+            "  mode local            Switch to local llama.cpp",
+            "  mode cloud            Switch to cloud (MiniMax)",
+            "  provider groq         Switch to Groq",
+            "  rag off               Disable RAG",
             "",
-            "  EXAMPLES:",
-            "    /rag on            Enable RAG",
-            "    /provider groq     Switch to Groq",
-            "    /index --reindex   Rebuild index",
-            "",
-            "  Or just type your question directly!",
+            "[dim]Or just type your question directly![/dim]",
             "",
         ]
 
@@ -74,4 +60,4 @@ class ClearCommand(Command):
     description = "Clear the screen"
 
     def execute(self, args: list[str], context: dict[str, Any]) -> CommandResult:
-        return CommandResult(success=True, message="\033[2J\033[H", data={"clear": True})
+        return CommandResult(success=True, message="", data={"clear": True})

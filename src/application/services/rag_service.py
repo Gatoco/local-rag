@@ -23,6 +23,14 @@ from src.domain.ports.document_store_port import DocumentStorePort
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_RAG_PROMPT = """Eres un asistente de IA que responde preguntas basándose en el contexto proporcionado.
+
+Contexto: {context}
+
+Pregunta: {input}
+
+Responde basándote únicamente en el contexto proporcionado. Si la información no está en el contexto, indica que no tienes esa información."""
+
 
 class RAGServiceError(Exception):
     """Excepción base para errores del servicio RAG."""
@@ -170,12 +178,21 @@ class RAGService(RAGPort):
             logger.error(f"Error en ingesta de directorio {dir_path}: {e}")
             raise RAGServiceIngestionError(f"Error ingesting directory {dir_path}: {e}") from e
 
-    def ask(self, question: str) -> dict[str, Any]:
+    def ask(
+        self,
+        question: str,
+        provider: str | None = None,
+        model: str | None = None,
+        api_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         Ejecuta el flujo RAG: Búsqueda Semántica → Generación Aumentada.
 
         Args:
             question: La pregunta del usuario
+            provider: Proveedor cloud (openai, anthropic, google, groq, minimax, deepseek). None = local.
+            model: Modelo específico del provider (None = usa default)
+            api_key: API key para provider cloud (None = usa .env)
 
         Returns:
             Diccionario con:
@@ -186,7 +203,6 @@ class RAGService(RAGPort):
             RAGServiceQueryError: Si falla la consulta
             ValueError: Si la pregunta está vacía
         """
-        # Validar entrada con Pydantic
         try:
             query = Query(text=question)
         except ValueError as e:
@@ -196,20 +212,19 @@ class RAGService(RAGPort):
         logger.info(f"Procesando consulta: '{question[:100]}...'")
 
         try:
-            # Ejecutar cadena RAG (abstracta, no LangChain directamente)
-            result = self.chain.invoke(query.text)
+            if provider:
+                result = self._ask_with_cloud_llm(query.text, provider, model, api_key)
+            else:
+                result = self.chain.invoke(query.text)
 
-            # Validar que hay respuesta
             answer_text = result.get("answer", "")
             if not answer_text or not answer_text.strip():
                 logger.warning("Respuesta vacía del LLM")
                 raise RAGServiceQueryError("LLM generated empty answer")
 
-            # Convertir contexto a documentos Pydantic
             context = result.get("context", [])
             source_documents = self._convert_context_to_documents(context)
 
-            # Crear Answer con Pydantic para validación
             answer = Answer(
                 text=answer_text.strip(),
                 source_documents=source_documents
@@ -221,10 +236,10 @@ class RAGService(RAGPort):
                     "question_length": len(query.text),
                     "answer_length": len(answer.text),
                     "sources_count": len(answer.source_documents),
+                    "provider": provider or "local",
                 }
             )
 
-            # Retornar dict para compatibilidad
             return {
                 "answer": answer.text,
                 "source_documents": answer.source_documents,
@@ -235,6 +250,46 @@ class RAGService(RAGPort):
         except Exception as e:
             logger.error(f"Error en consulta RAG: {e}", exc_info=True)
             raise RAGServiceQueryError(f"Error executing RAG query: {e}") from e
+
+    def _ask_with_cloud_llm(
+        self,
+        question: str,
+        provider: str,
+        model: str | None = None,
+        api_key: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Ejecuta consulta RAG con LLM cloud.
+
+        Args:
+            question: La pregunta
+            provider: Provider cloud
+            model: Modelo específico (None = default)
+            api_key: API key (None = .env)
+
+        Returns:
+            Resultado de la cadena RAG
+        """
+        from src.infrastructure.adapters.cloud_llm_adapter import CloudLLMAdapter
+        from src.infrastructure.adapters.langchain_rag_adapter import LangChainRAGAdapter
+
+        try:
+            cloud_llm = CloudLLMAdapter(provider=provider, model=model, api_key=api_key)
+
+            cloud_chain = LangChainRAGAdapter(
+                llm_adapter=cloud_llm,
+                doc_store=self.doc_store,
+                prompt_template=self.chain.prompt_template if hasattr(self.chain, 'prompt_template') else DEFAULT_RAG_PROMPT,
+                top_k=self.top_k,
+            )
+
+            result = cloud_chain.invoke(question)
+            logger.info(f"Consulta cloud completada con provider={provider}, model={cloud_llm.model}")
+            return result
+
+        except Exception as e:
+            logger.error(f"Error con LLM cloud {provider}: {e}")
+            raise RAGServiceQueryError(f"Cloud LLM error: {e}") from e
 
     def _convert_context_to_documents(self, context: list[Any]) -> list[Document]:
         """

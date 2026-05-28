@@ -1,62 +1,79 @@
 """
-Main REPL loop - orchestrates everything.
+Main REPL loop for local-rag.
+
+Refactored to be minimal and opencode-like:
+- Minimal prompt: "> "
+- Status bar header
+- Natural language command support
+- Local/Cloud mode switching
 """
 
 import os
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
 import readline
 
+from .ui.console import Console
+from .ui.statusbar import StatusBar
 from .commands.base import Command, CommandResult
 from .commands.help import HelpCommand, ExitCommand, ClearCommand
 from .commands.model import ProvidersCommand, ProviderCommand, ModelsCommand, ModelCommand
 from .commands.rag import RagCommand, IndexCommand, StatsCommand
-from .session import SessionManager
-from .history import History
-
-
-GREEN = "\033[92m"
-BLUE = "\033[94m"
-YELLOW = "\033[93m"
-RED = "\033[91m"
-RESET = "\033[0m"
-BOLD = "\033[1m"
-
-
-def colored(text: str, color: str) -> str:
-    return f"{color}{text}{RESET}"
+from .commands.mode import ModeCommand
+from .adapters.factory import get_llm_adapter, get_default_local_model
 
 
 class REPL:
-    def __init__(self):
+    """
+    Refactored REPL with minimal opencode-like interface.
+
+    Usage:
+        repl = REPL()
+        repl.run()
+    """
+
+    KNOWN_COMMANDS = ["mode", "provider", "model", "rag", "index", "help", "quit", "exit", "clear", "providers", "models", "stats", "h", "status"]
+
+    def __init__(self) -> None:
         self.running = True
-        self.rag_enabled = False
-        self.rag_top_k = 5
+        self.console = Console()
+        self.status_bar = StatusBar(self.console)
+
+        self.mode = "cloud"
         self.provider = "minimax"
         self.model = "MiniMax-M2.7"
+        self.rag_enabled = True
+        self.rag_top_k = 5
+        self.local_model = "none"
         self.collection_count = 0
+
         self._chroma_collection = None
-        self._embedding_model = None
         self._llm_adapter = None
+        self._local_llm_adapter = None
 
-        self.history = History()
-        self.session_manager = SessionManager()
-        self.current_session = self.session_manager.get_or_create_default()
-
-        self._setup_commands()
         self._setup_readline()
         self._init_chroma()
+        self._update_status()
+
+    def _update_status(self) -> None:
+        """Update status bar with current state."""
+        self.status_bar.update(
+            mode=self.mode,
+            provider=self.provider,
+            model=self.model,
+            rag_enabled=self.rag_enabled,
+            docs_count=self.collection_count,
+            local_model=self.local_model,
+        )
 
     def _init_chroma(self) -> None:
         """Initialize ChromaDB connection."""
         try:
             import chromadb
             from chromadb.config import Settings
-            from langchain_huggingface import HuggingFaceEmbeddings
 
             CHROMA_DB_DIR = Path(__file__).parent.parent.parent.parent.parent / "chroma_db"
             client = chromadb.PersistentClient(
@@ -65,282 +82,160 @@ class REPL:
             )
             self._chroma_collection = client.get_collection(name="local_rag_docs")
             self.collection_count = self._chroma_collection.count()
-
-            self._embedding_model = HuggingFaceEmbeddings(
-                model_name="BAAI/bge-large-en-v1.5",
-                model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True, "batch_size": 32}
-            )
         except Exception as e:
-            print(colored(f"Warning: ChromaDB not available: {e}", YELLOW))
+            self.console.print_warning(f"ChromaDB not available: {e}")
 
     def _get_adapter(self):
-        """Get or create LLM adapter."""
-        if self._llm_adapter:
+        """Get or create LLM adapter based on current mode."""
+        if self.mode == "local":
+            if self._local_llm_adapter is None:
+                from .adapters.factory import get_llm_adapter
+                self._local_llm_adapter = get_llm_adapter("local")
+                self.local_model = get_default_local_model() or "unknown"
+            return self._local_llm_adapter
+        else:
+            if self._llm_adapter is None:
+                from .adapters.factory import get_llm_adapter
+                self._llm_adapter = get_llm_adapter("cloud", self.provider, self.model)
             return self._llm_adapter
 
-        from src.infrastructure.adapters.cloud_llm_adapter import CloudLLMAdapter
-
-        api_key_env = {
-            "minimax": "MINIMAX_API_KEY",
-            "groq": "GROQ_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "deepseek": "DEEPSEEK_API_KEY",
-        }
-
-        env_var = api_key_env.get(self.provider, "MINIMAX_API_KEY")
-        api_key = os.environ.get(env_var)
-
-        if not api_key:
-            api_key_env_full = {
-                "minimax": os.environ.get("MINIMAX_API_KEY", ""),
-                "groq": os.environ.get("GROQ_API_KEY", ""),
-            }
-            for k, v in api_key_env_full.items():
-                if v:
-                    api_key = v
-                    self.provider = k
-                    break
-
-        if not api_key:
-            raise RuntimeError(f"No API key found. Set {env_var} in .env")
-
-        self._llm_adapter = CloudLLMAdapter(
-            provider=self.provider,
-            model=self.model,
-            api_key=api_key,
-        )
-        return self._llm_adapter
-
-    def _search_chroma(self, query: str, k: int = 3) -> list[dict]:
-        """Search ChromaDB for similar documents."""
-        if not self._chroma_collection or not self._embedding_model:
-            return []
-
-        try:
-            query_emb = self._embedding_model.embed_query(query)
-            results = self._chroma_collection.query(
-                query_embeddings=[query_emb],
-                n_results=k,
-                include=["documents", "metadatas"]
-            )
-            docs = []
-            if results and results.get("documents"):
-                for i, doc in enumerate(results["documents"][0]):
-                    meta = results.get("metadatas", [[{}]])[0][i] if results.get("metadatas") else {}
-                    docs.append({"content": doc, "metadata": meta})
-            return docs
-        except Exception as e:
-            print(colored(f"ChromaDB error: {e}", RED))
-            return []
-
-    def _setup_commands(self) -> None:
-        self._commands: list[Command] = [
-            HelpCommand(),
-            ExitCommand(),
-            ClearCommand(),
-            ProvidersCommand(),
-            ProviderCommand(),
-            ModelsCommand(),
-            ModelCommand(),
-            RagCommand(),
-            IndexCommand(),
-            StatsCommand(),
-        ]
-        self._command_map = {cmd.name: cmd for cmd in self._commands}
-        for cmd in self._commands:
-            for alias in cmd.aliases:
-                self._command_map[alias] = cmd
-
-    def _setup_readline(self) -> None:
-        readline.parse_and_bind("tab: complete")
-        readline.parse_and_bind("set editing-mode vi")
-
-    def _get_context(self) -> dict:
+    def _get_context(self) -> dict[str, Any]:
+        """Get context for command execution."""
         return {
-            "rag_enabled": self.rag_enabled,
-            "rag_top_k": self.rag_top_k,
+            "mode": self.mode,
             "provider": self.provider,
             "model": self.model,
+            "rag_enabled": self.rag_enabled,
+            "rag_top_k": self.rag_top_k,
             "collection_count": self.collection_count,
-            "commands": self._command_map,
-            "session": self.current_session,
-            "history": self.history,
+            "local_model": self.local_model,
+            "commands": {},  # For compatibility with help command
         }
 
-    def _update_context(self, updates: dict) -> None:
-        if "rag_enabled" in updates:
-            self.rag_enabled = updates["rag_enabled"]
-        if "rag_top_k" in updates:
-            self.rag_top_k = updates["rag_top_k"]
+    def _update_context(self, updates: dict[str, Any]) -> None:
+        """Update state from command result."""
+        if "mode" in updates:
+            new_mode = updates["mode"]
+            if new_mode != self.mode:
+                self.mode = new_mode
+                self._llm_adapter = None
+                if new_mode == "local":
+                    self._load_local_model()
+                else:
+                    self._local_llm_adapter = None
+
         if "provider" in updates:
             self.provider = updates["provider"]
             self._llm_adapter = None
+
         if "model" in updates:
             self.model = updates["model"]
             self._llm_adapter = None
 
-    def _handle_command(self, line: str) -> tuple[bool, dict, str]:
-        """Returns (is_user_input, data_dict, message)."""
-        if not line.strip():
-            return False, {}, ""
+        if "rag_enabled" in updates:
+            self.rag_enabled = updates["rag_enabled"]
 
-        if line.startswith("/"):
-            parts = line.split()
-            cmd_name = parts[0][1:].lower()
-            args = parts[1:] if len(parts) > 1 else []
+        if "rag_top_k" in updates:
+            self.rag_top_k = updates["rag_top_k"]
 
-            if cmd_name in self._command_map:
-                cmd = self._command_map[cmd_name]
-                context = self._get_context()
-                result = cmd.execute(args, context)
+        if "local_model" in updates:
+            self.local_model = updates["local_model"]
 
-                if result.data:
-                    self._update_context(result.data)
+        self._update_status()
 
-                    if result.data.get("exit"):
-                        self.running = False
+    def _load_local_model(self) -> None:
+        """Load local llama.cpp model."""
+        try:
+            self.console.print_info("Loading local model...")
+            self._local_llm_adapter = get_llm_adapter("local")
+            self.local_model = get_default_local_model() or "unknown"
+            self.console.print_success(f"Local model loaded: {self.local_model.split('/')[-1]}")
+        except Exception as e:
+            self.console.print_error(f"Failed to load local model: {e}")
+            self.mode = "cloud"
+            self._llm_adapter = None
 
-                return False, result.data if result.data else {}, result.message if result.should_print else ""
-            else:
-                return False, {"error": f"Unknown command: {cmd_name}"}, ""
+    def _setup_readline(self) -> None:
+        """Enable readline features."""
+        readline.parse_and_bind("tab: complete")
+        readline.parse_and_bind("set editing-mode vi")
 
-        return True, {}, ""
+    def _parse_input(self, line: str) -> tuple[bool, dict[str, Any]]:
+        """
+        Parse user input to determine if it's a command or query.
 
-    def _safe_progress_print(self, current: int, total: int, prefix: str = "") -> None:
-        """Print progress bar with percentage using sys.stdout for safety."""
-        if total <= 0:
-            return
-        pct = min(100, int(current / total * 100))
-        bar_len = 30
-        filled = int(bar_len * current / total)
-        bar = "█" * filled + "░" * (bar_len - filled)
-        prefix_str = f"{prefix} " if prefix else ""
-        msg = f"\r{prefix_str}[{bar}] {pct}% ({current}/{total})"
-        sys.stdout.write(msg)
-        sys.stdout.flush()
+        Returns:
+            (is_query, command_data)
+            - is_query: True if text should be sent to LLM
+            - command_data: dict with 'command' and 'args' if a command
+        """
+        line = line.strip()
+        if not line:
+            return False, {}
 
-    def _print_progress(self, current: int, total: int, prefix: str = "") -> None:
-        """Print progress bar with percentage (deprecated - use _safe_progress_print)."""
-        self._safe_progress_print(current, total, prefix)
+        first_word = line.lower().split()[0]
 
-    def _index_documents(self, directory: str, reindex: bool = False) -> None:
-        """Index documents with progress reporting."""
-        docs_dir = Path(directory).absolute()
+        if first_word.startswith("/"):
+            cmd_name = first_word[1:]
+            args = line.split()[1:]
+            return False, {"command": cmd_name, "args": args}
 
-        if not docs_dir.exists():
-            print(colored(f"\nDirectory not found: {directory}", RED))
-            return
+        if first_word in self.KNOWN_COMMANDS and len(line.split()) <= 2:
+            parts = line.lower().split()
+            return False, {"command": parts[0], "args": parts[1:] if len(parts) > 1 else []}
 
-        if reindex:
-            import chromadb
-            from chromadb.config import Settings
-            chroma_path = docs_dir.parent / "chroma_db"
-            try:
-                client = chromadb.PersistentClient(
-                    path=str(chroma_path),
-                    settings=Settings(anonymized_telemetry=False)
-                )
-                client.delete_collection(name="local_rag_docs")
-                print(colored("\nExisting collection deleted (--reindex)", YELLOW))
-            except Exception:
-                pass
+        return True, {}
 
-        print(colored(f"\nIndexing documents from: {docs_dir}", GREEN))
+    def _handle_command(self, command: str, args: list[str]) -> tuple[bool, dict[str, Any], str]:
+        """
+        Execute a command and return result.
 
-        embeddings = self._embedding_model
-        if embeddings is None:
-            print("Loading embedding model...")
+        Returns:
+            (handled, data, message)
+        """
+        cmd_map = {
+            "help": HelpCommand(),
+            "?": HelpCommand(),
+            "exit": ExitCommand(),
+            "quit": ExitCommand(),
+            "clear": ClearCommand(),
+            "providers": ProvidersCommand(),
+            "provider": ProviderCommand(),
+            "models": ModelsCommand(),
+            "model": ModelCommand(),
+            "rag": RagCommand(),
+            "index": IndexCommand(),
+            "stats": StatsCommand(),
+            "status": StatsCommand(),
+            "mode": ModeCommand(),
+            "m": ModeCommand(),
+        }
+
+        if command not in cmd_map:
+            return False, {}, f"Unknown command: {command}"
+
+        cmd = cmd_map[command]
+        context = self._get_context()
+        result = cmd.execute(args, context)
+
+        if result.data:
+            self._update_context(result.data)
+
+        return True, result.data if result.data else {}, result.message
+
+    def _search_chroma(self, query: str, k: int = 3) -> list[dict[str, Any]]:
+        """Search ChromaDB for similar documents."""
+        if not self._chroma_collection:
+            return []
+
+        try:
             from langchain_huggingface import HuggingFaceEmbeddings
             embeddings = HuggingFaceEmbeddings(
                 model_name="BAAI/bge-large-en-v1.5",
                 model_kwargs={"device": "cpu"},
                 encode_kwargs={"normalize_embeddings": True, "batch_size": 32}
             )
-
-        print("Loading documents...")
-        from src.infrastructure.adapters.langchain_loader_adapter import LangChainLoaderAdapter
-        loader = LangChainLoaderAdapter(chunk_size=800, chunk_overlap=150)
-
-        try:
-            all_docs = loader.load_directory(str(docs_dir))
-        except Exception as e:
-            print(colored(f"Error loading documents: {e}", RED))
-            return
-
-        if not all_docs:
-            print(colored("No documents found to index.", YELLOW))
-            return
-
-        total_chunks = len(all_docs)
-        print(f"Loaded {total_chunks} chunks from documents")
-
-        print("Indexing to ChromaDB...")
-        import chromadb
-        from chromadb.config import Settings
-        from chromadb.api.client import Client
-
-        chroma_path = docs_dir.parent / "chroma_db"
-
-        client = chromadb.PersistentClient(
-            path=str(chroma_path),
-            settings=Settings(anonymized_telemetry=False)
-        )
-
-        try:
-            collection = client.get_collection(name="local_rag_docs")
-            if reindex:
-                client.delete_collection(name="local_rag_docs")
-                collection = client.create_collection(name="local_rag_docs")
-        except Exception:
-            collection = client.create_collection(name="local_rag_docs")
-
-        batch_size = 100
-        indexed = 0
-        last_pct = -1
-        n_batches = (total_chunks + batch_size - 1) // batch_size
-
-        print(f"Indexing {total_chunks} chunks in {n_batches} batches (batch_size={batch_size})...")
-        print("Using sequential processing (no threading)")
-
-        completed = 0
-
-        for i in range(0, total_chunks, batch_size):
-            batch_start = i
-            batch_num = (i // batch_size) + 1
-
-            batch = all_docs[i:i + batch_size]
-            texts = [doc.page_content for doc in batch]
-            metadatas = [doc.metadata for doc in batch]
-
-            emb_batch = embeddings.embed_documents(texts)
-
-            batch_end = min(i + batch_size, total_chunks)
-            ids = [f"doc_{j}" for j in range(i, batch_end)]
-
-            collection.add(
-                ids=ids,
-                documents=texts,
-                embeddings=emb_batch,
-                metadatas=metadatas
-            )
-
-            completed += len(batch)
-            pct = int(completed / total_chunks * 100)
-            if pct != last_pct:
-                self._safe_progress_print(completed, total_chunks, "Indexing:")
-                last_pct = pct
-
-        print(colored(f"\n\nIndexing complete! {total_chunks} chunks indexed.", GREEN))
-        self.collection_count = collection.count()
-
-    def _search_chroma(self, query: str, k: int = 3) -> list[dict]:
-        """Search ChromaDB for similar documents."""
-        if not self._chroma_collection or not self._embedding_model:
-            return []
-
-        try:
-            query_emb = self._embedding_model.embed_query(query)
+            query_emb = embeddings.embed_query(query)
             results = self._chroma_collection.query(
                 query_embeddings=[query_emb],
                 n_results=k,
@@ -353,41 +248,8 @@ class REPL:
                     docs.append({"content": doc, "metadata": meta})
             return docs
         except Exception as e:
-            print(colored(f"ChromaDB error: {e}", RED))
+            self.console.print_error(f"ChromaDB error: {e}")
             return []
-
-    def _get_adapter(self):
-        """Get or create LLM adapter."""
-        if self._llm_adapter:
-            return self._llm_adapter
-
-        from src.infrastructure.adapters.cloud_llm_adapter import CloudLLMAdapter
-
-        api_key_env = {
-            "minimax": "MINIMAX_API_KEY",
-            "groq": "GROQ_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "deepseek": "DEEPSEEK_API_KEY",
-        }
-
-        env_var = api_key_env.get(self.provider, "MINIMAX_API_KEY")
-        api_key = os.environ.get(env_var)
-
-        if not api_key:
-            from dotenv import load_dotenv
-            env_path = Path(__file__).parent.parent.parent.parent / ".env"
-            load_dotenv(env_path)
-            api_key = os.environ.get(env_var)
-
-        if not api_key:
-            raise RuntimeError(f"No API key found. Set {env_var} in .env")
-
-        self._llm_adapter = CloudLLMAdapter(
-            provider=self.provider,
-            model=self.model,
-            api_key=api_key,
-        )
-        return self._llm_adapter
 
     def _build_rag_context(self, question: str) -> tuple[str, list[str]]:
         """Build context from ChromaDB for RAG query."""
@@ -428,64 +290,34 @@ Pregunta: {prompt}
 
 Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información del contexto. Si no hay suficiente información, di 'No tengo información suficiente en los documentos'."""
 
-                    print(colored(f"\n[Sources: {', '.join(sources[:3])}]\n", BLUE), end="", flush=True)
+                    self.console.print_dim(f"[Sources: {', '.join(sources[:3])}]")
+                    self.console.print()
+
                     full_response = ""
                     for token in adapter.generate_stream(full_prompt, max_tokens=1024):
                         print(token, end="", flush=True)
                         full_response += token
                     print()
-                    self.history.add("user", prompt)
-                    self.history.add("assistant", full_response)
                     return
                 else:
-                    print(colored("No documents found in RAG. Falling back to chat mode.\n", YELLOW))
+                    self.console.print_warning("No documents found in RAG. Falling back to chat mode.")
 
-            payload = adapter._build_payload(prompt, None)
-            headers = adapter._build_headers()
-
-            import httpx
-            with httpx.Client(timeout=adapter.timeout) as client:
-                with client.stream(
-                    "POST",
-                    f"{adapter.base_url}/chat/completions",
-                    json=payload,
-                    headers=headers
-                ) as response:
-                    response.raise_for_status()
-                    full_response = ""
-                    for line in response.iter_lines():
-                        if line.startswith("data: "):
-                            data = line[6:]
-                            if data.strip() == "[DONE]":
-                                break
-                            token = adapter._parse_sse_token(data)
-                            if token:
-                                print(token, end="", flush=True)
-                                full_response += token
-                    print()
-                    self.history.add("user", prompt)
-                    self.history.add("assistant", full_response)
+            full_response = ""
+            for token in adapter.generate_stream(prompt, max_tokens=1024):
+                print(token, end="", flush=True)
+                full_response += token
+            print()
 
         except Exception as e:
-            print(colored(f"Error: {e}", RED))
+            self.console.print_error(f"Error: {e}")
 
     def _print_welcome(self) -> None:
-        print()
-        print(colored("╭─────────────────────────────────────────────────────────────╮", GREEN))
-        print(colored("│                  MyLocalRAG REPL                             │", GREEN))
-        print(colored("╰─────────────────────────────────────────────────────────────╯", GREEN))
-        print()
-        print(f"  Provider: {BLUE}{self.provider}{RESET}")
-        print(f"  Model: {BLUE}{self.model}{RESET}")
-        print(f"  RAG: {GREEN if self.rag_enabled else YELLOW}{'ON' if self.rag_enabled else 'OFF'}{RESET}")
-        print(f"  Indexed docs: {self.collection_count}")
-        print()
-        print(f"  Type {BOLD}/help{RESET} for commands or just ask your question!")
-        print()
-
-    def prompt(self) -> str:
-        prefix = colored("RAG", GREEN) if self.rag_enabled else colored("LLM", BLUE)
-        return f"[{prefix}] mylocalrag > "
+        """Print welcome banner and status."""
+        self.console.console.print()
+        self.status_bar.print()
+        self.console.console.print()
+        self.console.print_dim("Type /help for commands or ask a question")
+        self.console.console.print()
 
     def run(self) -> None:
         """Main REPL loop."""
@@ -493,49 +325,46 @@ Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información 
 
         while self.running:
             try:
-                line = input(self.prompt()).strip()
+                line = input("> ").strip()
 
                 if not line:
                     continue
 
-                is_user_input, extra_data, cmd_msg = self._handle_command(line)
+                is_query, cmd_data = self._parse_input(line)
 
-                if cmd_msg:
-                    print(cmd_msg)
+                if not is_query:
+                    handled, data, msg = self._handle_command(cmd_data["command"], cmd_data["args"])
 
-                if extra_data:
-                    if "error" in extra_data:
-                        print(colored(extra_data["error"], RED))
-                    elif "action" in extra_data and extra_data["action"] == "index":
-                        self._index_documents(
-                            extra_data.get("directory", "./docs_to_ingest"),
-                            extra_data.get("reindex", False)
-                        )
-                        continue
+                    if msg:
+                        self.console.console.print(msg)
 
-                if not is_user_input:
-                    if extra_data and extra_data.get("exit"):
+                    if data.get("exit"):
                         break
+
+                    if not handled:
+                        self.console.print_error(msg if msg else "Unknown command")
+
                     continue
 
                 self._stream_chat(line)
 
             except KeyboardInterrupt:
-                print("\n(Type /exit to quit)")
+                self.console.console.print("\n[dim](Use /exit to quit)[/dim]")
                 continue
             except EOFError:
-                print("\nGoodbye!")
+                self.console.console.print("\n[cyan]Goodbye![/cyan]")
                 break
 
-        self.session_manager.update_session(self.current_session)
+        self.console.console.print("[dim]Session ended.[/dim]")
 
 
 def run_repl() -> None:
     """Entry point."""
     from dotenv import load_dotenv
 
-    env_path = Path(__file__).parent.parent.parent.parent / ".env"
-    load_dotenv(env_path)
+    env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
 
     repl = REPL()
     repl.run()

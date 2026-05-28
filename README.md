@@ -15,7 +15,7 @@ Sistema RAG local con soporte multi-provider (local + cloud). Arquitectura Ports
 - **Seguridad**: JWT auth, argon2 password hashing, rate limiting
 - **Persistência**: ChromaDB vector store en disco
 - **UI Electron**: Interfaz de escritorio para consultas
-- **CLI `mylocalrag`**: Chat interactivo con comandos `/rag`, `/index`
+- **CLI REPL**: Chat interactivo con modo local/cloud, comandos naturales y output Rich
 
 ## Stack
 
@@ -59,8 +59,8 @@ Opciones:
 ### REPL
 
 ```bash
-python3 mylocalrag.py
-# luego: /index --reindex
+python3 -m src.infrastructure.entrypoints.mylocalrag
+# luego: index --reindex
 ```
 
 **Nota importante**: El indexing usa procesamiento secuencial con 1 worker. No usar multi-threading con BGE-Large en CPU - causa contención de GIL y rendimiento degradado.
@@ -181,13 +181,55 @@ CHUNK_OVERLAP=150
 
 ## Uso
 
-### CLI
+### REPL (mylocalrag)
+
+REPL minimalista estilo opencode con soporte local/cloud.
+
+```bash
+python3 -m src.infrastructure.entrypoints.mylocalrag
+```
+
+**Prompt:**
+```
+╭─ local-rag ──────────────────────────────────────╮
+│ cloud | minimax | RAG | docs:2400                │
+╰───────────────────────────────────────────────────╯
+
+> _
+```
+
+**Comandos (naturales, sin `/` o con `/`):**
+
+| Comando | Descripción |
+|---------|-------------|
+| `help`, `?` | Mostrar ayuda |
+| `mode [local\|cloud]` | Cambiar entre modo local (llama.cpp) y cloud |
+| `provider <name>` | Cambiar provider cloud |
+| `model <name>` | Cambiar modelo |
+| `providers` | Listar providers disponibles |
+| `models` | Listar modelos del provider actual |
+| `rag [on\|off]` | Activar/desactivar RAG |
+| `index [--reindex]` | Indexar documentos |
+| `stats` | Ver estadísticas del índice |
+| `clear` | Limpiar pantalla |
+| `exit`, `quit` | Salir |
+
+**Ejemplos:**
+```bash
+> mode local                  # Cambiar a llama.cpp local
+> mode cloud                 # Volver a cloud (MiniMax por defecto)
+> provider groq              # Cambiar a Groq
+> rag off                     # Desactivar RAG
+> what is python              # Consulta directa (sin comando)
+```
+
+### CLI (legacy)
 
 ```bash
 python main.py
 ```
 
-Comandos:
+Comandos legacy:
 ```
 ingest-file <ruta>   Ingesta archivo (.pdf, .txt, .docx, .xlsx, .pptx)
 ingest-dir <ruta>    Ingesta directorio recursivamente
@@ -226,6 +268,18 @@ curl -X POST http://localhost:8000/api/v1/query \
     "question": "¿Qué es el cálculo diferencial?",
     "provider": "openai",
     "model": "gpt-4o-mini"
+  }'
+```
+
+**Consulta RAG con MiniMax (cloud)**:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "¿Qué información hay sobre estudiantes?",
+    "provider": "minimax",
+    "top_k": 4
   }'
 ```
 
@@ -296,7 +350,14 @@ src/
 │   │   ├── hf_embedding_adapter.py
 │   │   ├── llama_cpp_llm_adapter.py
 │   │   └── lmstudio_llm_adapter.py
-│   ├── entrypoints/     # API, CLI
+│   ├── entrypoints/     # API, CLI, REPL
+│   │   ├── repl/       # REPL estilo opencode
+│   │   │   ├── ui/         # Console, StatusBar
+│   │   │   ├── adapters/    # Factory para local/cloud
+│   │   │   └── commands/   # Comandos (help, mode, rag, etc.)
+│   │   ├── fastapi_adapter.py
+│   │   ├── api_schemas.py
+│   │   └── ...
 │   ├── security/        # Auth, rate limit
 │   └── cache/           # Semantic cache
 └── ui/electron/         # App de escritorio

@@ -329,16 +329,14 @@ class TestRAGRetrievalEdgeCases:
 
     @pytest.fixture
     def chromadb_adapter(self):
-        from langchain_huggingface import HuggingFaceEmbeddings
+        from src.infrastructure.adapters.hf_embedding_adapter import HFEmbeddingAdapter
+        embeddings = HFEmbeddingAdapter(model_name='BAAI/bge-large-en-v1.5')
         return ChromaDBAdapter(
-            embedding_port=HuggingFaceEmbeddings(
-                model_name='BAAI/bge-large-en-v1.5',
-                model_kwargs={'device': 'cpu'},
-                encode_kwargs={'normalize_embeddings': True, 'batch_size': 32}
-            ),
+            embedding_port=embeddings,
             persist_directory='./chroma_db'
         )
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_with_very_long_query(self, chromadb_adapter):
         """Test: Query muy larga no rompe retrieval"""
         chroma_store = chromadb_adapter.vector_store
@@ -348,6 +346,7 @@ class TestRAGRetrievalEdgeCases:
 
         assert len(results) >= 0
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_with_special_characters(self, chromadb_adapter):
         """Test: Query con caracteres especiales"""
         chroma_store = chromadb_adapter.vector_store
@@ -357,6 +356,7 @@ class TestRAGRetrievalEdgeCases:
 
         assert len(results) >= 0
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_with_unicode(self, chromadb_adapter):
         """Test: Query con unicode"""
         chroma_store = chromadb_adapter.vector_store
@@ -366,6 +366,7 @@ class TestRAGRetrievalEdgeCases:
 
         assert len(results) >= 0
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_no_results_returns_empty(self, chromadb_adapter):
         """Test: Query sin resultados retorna lista vacía"""
         chroma_store = chromadb_adapter.vector_store

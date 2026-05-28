@@ -288,15 +288,22 @@ class TestAPIIntegration:
     def mock_rag_service(self):
         """Mock de RAGService para tests"""
         from unittest.mock import Mock
-        
+
         mock_service = Mock()
         mock_service.ask.return_value = {
             "answer": "Esta es una respuesta de prueba",
             "source_documents": []
         }
         mock_service.get_document_count.return_value = 100
-        mock_service.llm.model_path = "./models/test.gguf"
-        
+
+        mock_llm = Mock()
+        mock_llm.model_path = "./models/test.gguf"
+
+        mock_chain = Mock()
+        mock_chain.llm = mock_llm
+
+        mock_service.chain = mock_chain
+
         return mock_service
 
     @pytest.fixture

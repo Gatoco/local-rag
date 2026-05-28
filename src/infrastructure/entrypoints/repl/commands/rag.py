@@ -2,6 +2,8 @@
 RAG commands for toggling and configuring RAG mode.
 """
 
+from typing import Any
+
 from .base import Command, CommandResult
 
 
@@ -114,8 +116,8 @@ class StatsCommand(Command):
             "│       Indexed Documents Stats              │",
             "╰─────────────────────────────────────────────╯",
             f"  Total chunks: {collection_count}",
-            f"  Collection: local_rag_docs",
-            f"  Embedding: BAAI/bge-large-en-v1.5 (1024 dims)",
+            "  Collection: local_rag_docs",
+            "  Embedding: BAAI/bge-large-en-v1.5 (1024 dims)",
             "",
         ]
 

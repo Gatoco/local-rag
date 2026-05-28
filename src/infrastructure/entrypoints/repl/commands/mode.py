@@ -4,8 +4,8 @@ Mode command for switching between local and cloud.
 
 from typing import Any
 
-from .base import Command, CommandResult
 from ..adapters.factory import get_available_local_models, get_default_local_model
+from .base import Command, CommandResult
 
 
 class ModeCommand(Command):
@@ -96,8 +96,8 @@ class ModeCommand(Command):
             "",
             "[bold]Available Modes:[/bold]",
             "",
-            f"  [green]local[/green]   - llama.cpp (local GGUF model)",
-            f"  [cyan]cloud[/cyan]    - Cloud LLM (MiniMax by default)",
+            "  [green]local[/green]   - llama.cpp (local GGUF model)",
+            "  [cyan]cloud[/cyan]    - Cloud LLM (MiniMax by default)",
             "",
             "[bold]Local Models:[/bold]",
         ]
@@ -131,7 +131,7 @@ class ModeCommand(Command):
 
         return CommandResult(
             success=True,
-            message=f"Switching to local mode...",
+            message="Switching to local mode...",
             data={
                 "mode": "local",
                 "local_model": model_name,

@@ -8,7 +8,6 @@ from typing import Any
 
 from rich.console import Console as RichConsole
 from rich.markdown import Markdown
-from rich.style import Style
 from rich.theme import Theme
 
 custom_theme = Theme({

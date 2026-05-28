@@ -4,7 +4,7 @@ Adapter factory for local and cloud LLM adapters.
 Provides unified interface to get the appropriate adapter based on mode.
 """
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.domain.ports.llm_port import LLMPort
@@ -31,8 +31,6 @@ def get_llm_adapter(
     Raises:
         RuntimeError: If required configuration is missing
     """
-    import os
-    from pathlib import Path
 
     if mode == "local":
         return _get_local_adapter()
@@ -73,7 +71,6 @@ def _get_cloud_adapter(
     api_key: str | None = None,
 ) -> "LLMPort":
     """Get cloud LLM adapter."""
-    import os
     from pathlib import Path
 
     from dotenv import load_dotenv

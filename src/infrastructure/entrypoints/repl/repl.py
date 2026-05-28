@@ -8,22 +8,17 @@ Refactored to be minimal and opencode-like:
 - Local/Cloud mode switching
 """
 
-import os
-import sys
-import time
+import readline
 from pathlib import Path
 from typing import Any
 
-import readline
-
+from .adapters.factory import get_default_local_model, get_llm_adapter
+from .commands.help import ClearCommand, ExitCommand, HelpCommand
+from .commands.mode import ModeCommand
+from .commands.model import ModelCommand, ModelsCommand, ProviderCommand, ProvidersCommand
+from .commands.rag import IndexCommand, RagCommand, StatsCommand
 from .ui.console import Console
 from .ui.statusbar import StatusBar
-from .commands.base import Command, CommandResult
-from .commands.help import HelpCommand, ExitCommand, ClearCommand
-from .commands.model import ProvidersCommand, ProviderCommand, ModelsCommand, ModelCommand
-from .commands.rag import RagCommand, IndexCommand, StatsCommand
-from .commands.mode import ModeCommand
-from .adapters.factory import get_llm_adapter, get_default_local_model
 
 
 class REPL:
@@ -75,9 +70,9 @@ class REPL:
             import chromadb
             from chromadb.config import Settings
 
-            CHROMA_DB_DIR = Path(__file__).parent.parent.parent.parent.parent / "chroma_db"
+            chroma_db_dir = Path(__file__).parent.parent.parent.parent.parent / "chroma_db"
             client = chromadb.PersistentClient(
-                path=str(CHROMA_DB_DIR),
+                path=str(chroma_db_dir),
                 settings=Settings(anonymized_telemetry=False)
             )
             self._chroma_collection = client.get_collection(name="local_rag_docs")

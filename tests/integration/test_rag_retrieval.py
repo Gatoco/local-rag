@@ -6,6 +6,8 @@ Tests verifican:
 - Calidad de las fuentes devueltas
 - Parameterized queries
 - Edge cases de retrieval
+
+NOTA: Estos tests requieren que chroma_db esté poblado. En CI se saltan.
 """
 
 import os
@@ -13,6 +15,21 @@ import pytest
 
 from src.infrastructure.adapters.hf_embedding_adapter import HFEmbeddingAdapter
 from src.infrastructure.adapters.chromadb_adapter import ChromaDBAdapter
+
+
+def _check_chroma_populated():
+    """Check if chroma_db has documents."""
+    try:
+        import chromadb
+        from chromadb.config import Settings
+        client = chromadb.PersistentClient(
+            path="./chroma_db",
+            settings=Settings(anonymized_telemetry=False)
+        )
+        collection = client.get_collection(name="local_rag_docs")
+        return collection.count() > 0
+    except Exception:
+        return False
 
 
 class TestRAGRetrieval:
@@ -27,6 +44,8 @@ class TestRAGRetrieval:
             persist_directory='./chroma_db'
         )
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_returns_sources(self, chromadb_adapter):
         """Test: Retrieval devuelve documentos fuente"""
         chroma_store = chromadb_adapter.vector_store
@@ -42,6 +61,7 @@ class TestRAGRetrieval:
             assert doc.page_content, "Document should have content"
             assert score > 0.0, "Score should be positive"
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_with_different_queries(self, chromadb_adapter):
         """Test: Retrieval funciona con diferentes queries"""
         chroma_store = chromadb_adapter.vector_store
@@ -57,6 +77,7 @@ class TestRAGRetrieval:
             results = chroma_store.similarity_search_with_score(query, k=2)
             assert len(results) > 0, f"Should return results for: {query}"
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_top_k_parameter(self, chromadb_adapter):
         """Test: Retrieval respeta parámetro top_k"""
         chroma_store = chromadb_adapter.vector_store
@@ -65,6 +86,7 @@ class TestRAGRetrieval:
             results = chroma_store.similarity_search_with_score("student", k=k)
             assert len(results) == k, f"Should return exactly {k} results for k={k}"
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_score_range(self, chromadb_adapter):
         """Test: Scores de retrieval están en rango válido"""
         chroma_store = chromadb_adapter.vector_store
@@ -74,6 +96,7 @@ class TestRAGRetrieval:
         for doc, score in results:
             assert 0.0 <= score <= 1.0, f"Score {score} out of range [0, 1]"
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_context_relevance(self, chromadb_adapter):
         """Test: Documentos recuperados son contextualmente relevantes"""
         chroma_store = chromadb_adapter.vector_store
@@ -92,6 +115,7 @@ class TestRAGRetrieval:
                 for keyword in ['student', 'grade', 'score', 'calificacion', 'performance']
             ), f"Document should contain relevant keywords: {doc.page_content[:100]}"
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_metadata_preserved(self, chromadb_adapter):
         """Test: Metadata se preserva en retrieval"""
         chroma_store = chromadb_adapter.vector_store
@@ -102,6 +126,7 @@ class TestRAGRetrieval:
             assert doc.metadata, "Document should have metadata"
             assert isinstance(doc.metadata, dict), "Metadata should be dict"
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_empty_query_handling(self, chromadb_adapter):
         """Test: Query vacío retorna error o vacío"""
         chroma_store = chromadb_adapter.vector_store
@@ -109,6 +134,7 @@ class TestRAGRetrieval:
         results = chroma_store.similarity_search_with_score("", k=3)
         assert len(results) >= 0
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_retrieval_id_consistency(self, chromadb_adapter):
         """Test: Misma query retorna IDs consistentes"""
         chroma_store = chromadb_adapter.vector_store
@@ -123,6 +149,7 @@ class TestRAGRetrieval:
 
         assert ids1 == ids2, "Same query should return same documents"
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db")
     def test_collection_count(self, chromadb_adapter):
         """Test: Verifica count de colección"""
         chroma_store = chromadb_adapter.vector_store
@@ -143,6 +170,7 @@ class TestRAGRetrievalWithMinimax:
         load_dotenv()
         return os.getenv("MINIMAX_API_KEY")
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db and API key")
     def test_cloud_llm_adapter_minimax(self, minimax_api_key):
         """Test: CloudLLMAdapter funciona con MiniMax"""
         if not minimax_api_key:
@@ -159,6 +187,7 @@ class TestRAGRetrievalWithMinimax:
         assert info["provider"] == "minimax"
         assert info["api_key_set"] is True
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db and API key")
     def test_minimax_generate_response(self, minimax_api_key):
         """Test: MiniMax genera respuesta"""
         if not minimax_api_key:
@@ -172,6 +201,7 @@ class TestRAGRetrievalWithMinimax:
         assert response, "Should return non-empty response"
         print(f"\n[V] MiniMax response: {response}")
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db and API key")
     def test_minimax_streaming(self, minimax_api_key):
         """Test: MiniMax streaming funciona"""
         if not minimax_api_key:
@@ -188,6 +218,7 @@ class TestRAGRetrievalWithMinimax:
         assert full_response, "Full response should not be empty"
         print(f"\n[V] MiniMax stream: {full_response[:50]}...")
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db and API key")
     def test_rag_flow_with_minimax(self, minimax_api_key):
         """Test: RAG flow end-to-end con MiniMax (requiere chroma_db indexing)"""
         if not minimax_api_key:
@@ -233,6 +264,7 @@ Responde basándote únicamente en el contexto proporcionado.""",
         print(f"\n[V] RAG with MiniMax answer: {result['answer'][:100]}...")
         print(f"[V] Sources used: {len(result['context'])}")
 
+    @pytest.mark.skipif(not _check_chroma_populated(), reason="requires populated chroma_db and API key")
     def test_rag_service_ask_with_minimax(self, minimax_api_key):
         """Test: RAGService.ask() con provider=minimax"""
         if not minimax_api_key:

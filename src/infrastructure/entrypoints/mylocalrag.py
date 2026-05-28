@@ -22,6 +22,5 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from src.infrastructure.entrypoints.repl.repl import run_repl
 
-
 if __name__ == "__main__":
     run_repl()

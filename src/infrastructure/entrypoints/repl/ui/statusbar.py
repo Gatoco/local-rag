@@ -4,9 +4,7 @@ Status bar display for REPL.
 Shows current mode, provider, model, RAG status, and document count.
 """
 
-from rich.box import Box
 from rich.panel import Panel
-from rich.console import Console
 
 from ..ui.console import Console as REPLConsole
 

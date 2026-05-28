@@ -2,6 +2,8 @@
 Help command - shows available commands.
 """
 
+from typing import Any
+
 from .base import Command, CommandResult
 
 

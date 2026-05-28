@@ -2,8 +2,11 @@
 Model and provider commands.
 """
 
-from .base import Command, CommandResult
+from typing import Any
+
 from src.infrastructure.adapters.cloud_llm_adapter import PROVIDER_CONFIG
+
+from .base import Command, CommandResult
 
 
 class ProvidersCommand(Command):
@@ -15,7 +18,7 @@ class ProvidersCommand(Command):
         current = context.get("provider", "minimax")
 
         lines = ["", "Available Providers:", ""]
-        for provider_id, cfg in PROVIDER_CONFIG.items():
+        for provider_id, _cfg in PROVIDER_CONFIG.items():
             marker = " ← current" if provider_id == current else ""
             lines.append(f"  {provider_id}{marker}")
 

@@ -198,6 +198,66 @@ python3 -m src.infrastructure.entrypoints.mylocalrag
 > _
 ```
 
+**Comandos completos:**
+
+| Comando | Alias | Descripción |
+|---------|-------|-------------|
+| `mode` | `m` | Ver modo actual |
+| `mode local` | - | Cambiar a llama.cpp local |
+| `mode cloud` | - | Cambiar a cloud (MiniMax) |
+| `mode list` | - | Listar modos disponibles |
+| `provider <name>` | - | Cambiar provider cloud |
+| `providers` | - | Listar todos los providers |
+| `model <name>` | - | Cambiar modelo del provider actual |
+| `models` | - | Listar modelos del provider actual |
+| `rag` | - | Toggle RAG on/off |
+| `rag on` | - | Activar RAG |
+| `rag off` | - | Desactivar RAG |
+| `rag status` | - | Ver estado de RAG |
+| `rag topk <n>` | - | Cambiar top_k (1-20) |
+| `index` | - | Indexar `./docs_to_ingest` |
+| `index --reindex` | - | Re-indexar desde cero |
+| `index <dir>` | - | Indexar directorio específico |
+| `stats` | `info`, `collection` | Ver estadísticas del índice |
+| `help` | `?` | Mostrar ayuda |
+| `clear` | `cls` | Limpiar pantalla |
+| `exit` | `quit`, `q` | Salir |
+
+**Providers cloud:** minimax, groq, openai, google, deepseek, anthropic
+
+**Ejemplos:**
+```bash
+> mode local                  # Cambiar a llama.cpp local
+> mode cloud                 # Volver a cloud (MiniMax por defecto)
+> provider groq              # Cambiar a Groq
+> model llama-3.3-70b-versatile  # Cambiar modelo de Groq
+> rag on                     # Activar RAG
+> rag off                    # Desactivar RAG
+> rag topk 10                # Recuperar 10 documentos
+> index --reindex            # Re-indexar desde cero
+> stats                      # Ver documentos indexados
+
+> ¿Qué es Python?           # Consulta directa (sin comando)
+```
+
+**Estado del sistema (header):**
+```
+╭─ local-rag ──────────────────────────────────────╮
+│ cloud | minimax | RAG | docs:2400                │
+╰───────────────────────────────────────────────────╯
+```
+
+El header se actualiza automáticamente al cambiar provider, modo, o RAG.
+
+**Prompt:**
+```
+╭─ local-rag ──────────────────────────────────────╮
+│ cloud | minimax | RAG | docs:2400                │
+╰───────────────────────────────────────────────────╯
+
+> _
+```
+
 **Comandos (naturales, sin `/` o con `/`):**
 
 | Comando | Descripción |

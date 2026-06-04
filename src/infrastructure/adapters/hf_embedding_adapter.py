@@ -18,8 +18,8 @@ class HFEmbeddingAdapter(EmbeddingPort):
         self.model_name = model_name
         self.model = HuggingFaceEmbeddings(
             model_name=model_name,
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True, 'batch_size': 16}
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True, "batch_size": 16},
         )
 
     def get_embeddings_model(self) -> Any:

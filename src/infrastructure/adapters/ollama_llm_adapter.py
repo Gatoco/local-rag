@@ -55,7 +55,7 @@ class OllamaLLMAdapter(LLMPort):
             temperature=temperature,
             base_url=base_url,
             timeout=request_timeout,
-            keep_alive="5m"
+            keep_alive="5m",
         )
 
     def generate_response(self, prompt: str, max_tokens: int | None = None) -> str:
@@ -63,7 +63,9 @@ class OllamaLLMAdapter(LLMPort):
         response = self.llm.invoke(prompt)
         return cast(str, response.content)
 
-    def generate_stream(self, prompt: str, max_tokens: int | None = None) -> Generator[str, None, None]:
+    def generate_stream(
+        self, prompt: str, max_tokens: int | None = None
+    ) -> Generator[str, None, None]:
         """
         Genera respuesta en streaming usando Ollama.
 
@@ -71,10 +73,10 @@ class OllamaLLMAdapter(LLMPort):
             Tokens generados uno por uno
         """
         for chunk in self.llm.stream(prompt):
-            if hasattr(chunk, 'content'):
+            if hasattr(chunk, "content"):
                 yield chunk.content
-            elif isinstance(chunk, dict) and 'message' in chunk:
-                yield chunk['message'].get('content', '')
+            elif isinstance(chunk, dict) and "message" in chunk:
+                yield chunk["message"].get("content", "")
 
     def get_model(self) -> Any:
         """Devuelve la instancia de ChatOllama."""

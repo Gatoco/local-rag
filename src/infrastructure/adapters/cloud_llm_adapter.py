@@ -7,12 +7,16 @@ API keys are read from environment variables (.env file).
 
 import logging
 import os
+import time
 from collections.abc import Generator
 from typing import Any, TypedDict
 
 import httpx
 
+from src.domain.ports.llm_port import LLMPort
+
 logger = logging.getLogger(__name__)
+
 
 class ProviderConfig(TypedDict):
     api_key_env: str
@@ -54,7 +58,15 @@ PROVIDER_CONFIG: dict[str, ProviderConfig] = {
     "minimax": {
         "api_key_env": "MINIMAX_API_KEY",
         "base_url": "https://api.minimax.io/v1",
-        "models": ["MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2.5-highspeed", "MiniMax-M2.1", "MiniMax-M2.1-highspeed", "MiniMax-M2"],
+        "models": [
+            "MiniMax-M2.7",
+            "MiniMax-M2.7-highspeed",
+            "MiniMax-M2.5",
+            "MiniMax-M2.5-highspeed",
+            "MiniMax-M2.1",
+            "MiniMax-M2.1-highspeed",
+            "MiniMax-M2",
+        ],
         "default_model": "MiniMax-M2.7",
         "supports_streaming": True,
     },
@@ -72,15 +84,22 @@ TIMEOUT_SECONDS = 20
 
 class CloudLLMConfigurationError(Exception):
     """Error de configuración del adapter cloud."""
+
     pass
 
 
 class CloudLLMConnectionError(Exception):
     """Error de conexión con el proveedor cloud."""
+
     pass
 
 
-class CloudLLMAdapter:
+RETRYABLE_STATUS_CODES = {429, 503, 504}
+MAX_RETRIES = 3
+INITIAL_BACKOFF = 1.0
+
+
+class CloudLLMAdapter(LLMPort):
     """
     Adapter universal para proveedores de LLM en la nube.
 
@@ -99,6 +118,7 @@ class CloudLLMAdapter:
         model: str | None = None,
         api_key: str | None = None,
         timeout: int = TIMEOUT_SECONDS,
+        max_retries: int = MAX_RETRIES,
     ):
         """
         Inicializa el adapter cloud.
@@ -127,6 +147,7 @@ class CloudLLMAdapter:
 
         self.base_url = config["base_url"]
         self.timeout = timeout
+        self.max_retries = max_retries
         self._client = httpx.Client(timeout=timeout)
 
     def generate_response(self, prompt: str, max_tokens: int | None = None) -> str:
@@ -137,31 +158,67 @@ class CloudLLMAdapter:
     def generate_stream(
         self, prompt: str, max_tokens: int | None = None
     ) -> Generator[str, None, None]:
-        """Genera respuesta en streaming token por token."""
+        """Genera respuesta en streaming token por token con reintentos."""
         payload = self._build_payload(prompt, max_tokens)
         headers = self._build_headers()
 
-        try:
-            with self._client.stream("POST", f"{self.base_url}/chat/completions", json=payload, headers=headers) as response:
-                response.raise_for_status()
-                for line in response.iter_lines():
-                    if line.startswith("data: "):
-                        data = line[6:]
-                        if data.strip() == "[DONE]":
-                            return
-                        token = self._parse_sse_token(data)
-                        if token:
-                            yield token
-        except httpx.TimeoutException:
-            raise CloudLLMConnectionError(
-                f"Timeout ({self.timeout}s) conectando a {self.provider}"
-            ) from None
-        except httpx.HTTPStatusError as e:
-            raise CloudLLMConnectionError(
-                f"Error HTTP {e.response.status_code} de {self.provider}: {e.response.text[:200]}"
-            ) from e
-        except Exception as e:
-            raise CloudLLMConnectionError(f"Error de conexión con {self.provider}: {e}") from e
+        last_error = None
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                with self._client.stream(
+                    "POST", f"{self.base_url}/chat/completions", json=payload, headers=headers
+                ) as response:
+                    if (
+                        response.status_code in RETRYABLE_STATUS_CODES
+                        and attempt < self.max_retries
+                    ):
+                        wait_time = INITIAL_BACKOFF * (2 ** (attempt - 1))
+                        logger.warning(
+                            "Rate limited, retrying in %ss (attempt %d/%d)",
+                            wait_time,
+                            attempt,
+                            self.max_retries,
+                        )
+                        time.sleep(wait_time)
+                        continue
+
+                    response.raise_for_status()
+                    for line in response.iter_lines():
+                        if line.startswith("data: "):
+                            data = line[6:]
+                            if data.strip() == "[DONE]":
+                                return
+                            token = self._parse_sse_token(data)
+                            if token:
+                                yield token
+                    return
+            except httpx.TimeoutException:
+                raise CloudLLMConnectionError(
+                    f"Timeout ({self.timeout}s) conectando a {self.provider}"
+                ) from None
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                if e.response.status_code in RETRYABLE_STATUS_CODES and attempt < self.max_retries:
+                    wait_time = INITIAL_BACKOFF * (2 ** (attempt - 1))
+                    logger.warning(f"HTTP {e.response.status_code}, retrying in {wait_time}s")
+                    time.sleep(wait_time)
+                    continue
+                error_msg = (
+                    f"Error HTTP {e.response.status_code} de {self.provider}: "
+                    f"{e.response.text[:200]}"
+                )
+                raise CloudLLMConnectionError(error_msg) from e
+            except Exception as e:
+                last_error = e
+                if attempt < self.max_retries:
+                    wait_time = INITIAL_BACKOFF * (2 ** (attempt - 1))
+                    logger.warning(f"Error {e}, retrying in {wait_time}s")
+                    time.sleep(wait_time)
+                    continue
+                raise CloudLLMConnectionError(f"Error de conexión con {self.provider}: {e}") from e
+
+        if last_error:
+            raise CloudLLMConnectionError(f"Max retries exceeded: {last_error}") from last_error
 
     def _build_payload(self, prompt: str, max_tokens: int | None) -> dict[str, Any]:
         """Construye el payload según el provider."""
@@ -209,6 +266,7 @@ class CloudLLMAdapter:
         """Parsea token de SSE data."""
         try:
             import json
+
             parsed = json.loads(data)
             choices = parsed.get("choices", [])
             if choices:

@@ -59,6 +59,7 @@ class LLMChatCLI(ABC):
         config_path = os.path.expanduser(custom_path or self.config_path)
         try:
             import tomllib
+
             with open(config_path, "rb") as f:
                 config_data = tomllib.load(f)
             self.logger.info(f"Config loaded from {config_path}")
@@ -145,8 +146,7 @@ class LLMChatCLI(ABC):
             Configured ArgumentParser
         """
         parser = argparse.ArgumentParser(
-            description=self.description,
-            formatter_class=argparse.RawDescriptionHelpFormatter
+            description=self.description, formatter_class=argparse.RawDescriptionHelpFormatter
         )
 
         parser.add_argument(
@@ -154,42 +154,35 @@ class LLMChatCLI(ABC):
             type=str,
             nargs="?",
             default=None,
-            help="Prompt to send to the model. If not provided, enters interactive mode."
+            help="Prompt to send to the model. If not provided, enters interactive mode.",
         )
         parser.add_argument(
-            "-p", "--provider",
+            "-p",
+            "--provider",
             type=str,
             default=None,
-            help="Provider to use (openai, anthropic, google, groq, minimax, deepseek)"
+            help="Provider to use (openai, anthropic, google, groq, minimax, deepseek)",
         )
         parser.add_argument(
-            "-m", "--model",
+            "-m",
+            "--model",
             type=str,
             default=None,
-            help="Model to use (e.g., gpt-4o-mini, claude-sonnet-4, MiniMax-M2.7)"
+            help="Model to use (e.g., gpt-4o-mini, claude-sonnet-4, MiniMax-M2.7)",
         )
         parser.add_argument(
-            "-c", "--config-file",
+            "-c",
+            "--config-file",
             type=str,
             default=self.config_path,
-            help=f"Path to config file (default: {self.config_path})"
+            help=f"Path to config file (default: {self.config_path})",
+        )
+        parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
+        parser.add_argument(
+            "--markdown", action="store_true", help="Output in markdown format", default=False
         )
         parser.add_argument(
-            "-v", "--verbose",
-            action="store_true",
-            help="Enable verbose logging"
-        )
-        parser.add_argument(
-            "--markdown",
-            action="store_true",
-            help="Output in markdown format",
-            default=False
-        )
-        parser.add_argument(
-            "--system",
-            type=str,
-            default=None,
-            help="System prompt / context for the conversation"
+            "--system", type=str, default=None, help="System prompt / context for the conversation"
         )
 
         self.add_extra_args(parser)
@@ -325,7 +318,9 @@ class LLMChatCLI(ABC):
         pass
 
     @abstractmethod
-    def stream_generate_chat(self, prompt: str, config: dict[str, Any], context: list[dict[str, str]] | None) -> None:
+    def stream_generate_chat(
+        self, prompt: str, config: dict[str, Any], context: list[dict[str, str]] | None
+    ) -> None:
         """
         Generate chat response with streaming.
 

@@ -50,30 +50,28 @@ class Document(BaseModel):
     )
 
     page_content: str = Field(
-        ...,
-        min_length=1,
-        description="El contenido de texto del documento/chunk"
+        ..., min_length=1, description="El contenido de texto del documento/chunk"
     )
     metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Información sobre el documento (fuente, página, etc)"
+        default_factory=dict, description="Información sobre el documento (fuente, página, etc)"
     )
-    id: str | None = Field(
-        default=None,
-        description="ID único generado por la BD vectorial"
-    )
+    id: str | None = Field(default=None, description="ID único generado por la BD vectorial")
 
-    @field_validator('metadata')
+    @field_validator("metadata")
     @classmethod
     def validate_metadata(cls, v: dict[str, Any]) -> dict[str, Any]:
         """Valida que los valores del metadata sean serializables."""
         for key, value in v.items():
             if not isinstance(value, (str, int, float, bool, type(None), list, dict)):
-                raise ValueError(f"Metadata value for '{key}' must be JSON serializable, got {type(value)}")
+                raise ValueError(
+                    f"Metadata value for '{key}' must be JSON serializable, got {type(value)}"
+                )
         return v
 
     def __repr__(self) -> str:
-        content_preview = self.page_content[:50] + "..." if len(self.page_content) > 50 else self.page_content
+        content_preview = (
+            self.page_content[:50] + "..." if len(self.page_content) > 50 else self.page_content
+        )
         return f"Document(id={self.id!r}, content={content_preview!r})"
 
 
@@ -111,10 +109,10 @@ class Query(BaseModel):
         ...,
         min_length=1,
         max_length=10000,
-        description="El texto completo de la pregunta/consulta"
+        description="El texto completo de la pregunta/consulta",
     )
 
-    @field_validator('text')
+    @field_validator("text")
     @classmethod
     def validate_text_not_empty(cls, v: str) -> str:
         """Valida que el texto no esté vacío o solo whitespace."""
@@ -172,13 +170,10 @@ class Answer(BaseModel):
     )
 
     text: str = Field(
-        ...,
-        min_length=1,
-        description="El texto de la respuesta generada por el LLM"
+        ..., min_length=1, description="El texto de la respuesta generada por el LLM"
     )
     source_documents: list[Document] = Field(
-        default=[],
-        description="Documentos fuente que sustentan la respuesta"
+        default=[], description="Documentos fuente que sustentan la respuesta"
     )
 
     def add_source_document(self, document: Document) -> None:
@@ -199,7 +194,7 @@ class Answer(BaseModel):
         """
         sources = set()
         for doc in self.source_documents:
-            source = doc.metadata.get('source', 'desconocido')
+            source = doc.metadata.get("source", "desconocido")
             sources.add(source)
         return list(sources)
 

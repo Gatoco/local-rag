@@ -45,7 +45,9 @@ class LLMPort(ABC):
         pass
 
     @abstractmethod
-    def generate_stream(self, prompt: str, max_tokens: int | None = None) -> Generator[str, None, None]:
+    def generate_stream(
+        self, prompt: str, max_tokens: int | None = None
+    ) -> Generator[str, None, None]:
         """
         Genera una respuesta en streaming (token por token).
 

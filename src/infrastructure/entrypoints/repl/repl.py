@@ -30,7 +30,22 @@ class REPL:
         repl.run()
     """
 
-    KNOWN_COMMANDS = ["mode", "provider", "model", "rag", "index", "help", "quit", "exit", "clear", "providers", "models", "stats", "h", "status"]
+    KNOWN_COMMANDS = [
+        "mode",
+        "provider",
+        "model",
+        "rag",
+        "index",
+        "help",
+        "quit",
+        "exit",
+        "clear",
+        "providers",
+        "models",
+        "stats",
+        "h",
+        "status",
+    ]
 
     def __init__(self) -> None:
         self.running = True
@@ -72,8 +87,7 @@ class REPL:
 
             chroma_db_dir = Path(__file__).parent.parent.parent.parent.parent / "chroma_db"
             client = chromadb.PersistentClient(
-                path=str(chroma_db_dir),
-                settings=Settings(anonymized_telemetry=False)
+                path=str(chroma_db_dir), settings=Settings(anonymized_telemetry=False)
             )
             self._chroma_collection = client.get_collection(name="local_rag_docs")
             self.collection_count = self._chroma_collection.count()
@@ -85,12 +99,14 @@ class REPL:
         if self.mode == "local":
             if self._local_llm_adapter is None:
                 from .adapters.factory import get_llm_adapter
+
                 self._local_llm_adapter = get_llm_adapter("local")
                 self.local_model = get_default_local_model() or "unknown"
             return self._local_llm_adapter
         else:
             if self._llm_adapter is None:
                 from .adapters.factory import get_llm_adapter
+
                 self._llm_adapter = get_llm_adapter("cloud", self.provider, self.model)
             return self._llm_adapter
 
@@ -225,21 +241,22 @@ class REPL:
 
         try:
             from langchain_huggingface import HuggingFaceEmbeddings
+
             embeddings = HuggingFaceEmbeddings(
                 model_name="BAAI/bge-large-en-v1.5",
                 model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True, "batch_size": 32}
+                encode_kwargs={"normalize_embeddings": True, "batch_size": 32},
             )
             query_emb = embeddings.embed_query(query)
             results = self._chroma_collection.query(
-                query_embeddings=[query_emb],
-                n_results=k,
-                include=["documents", "metadatas"]
+                query_embeddings=[query_emb], n_results=k, include=["documents", "metadatas"]
             )
             docs = []
             if results and results.get("documents"):
                 for i, doc in enumerate(results["documents"][0]):
-                    meta = results.get("metadatas", [[{}]])[0][i] if results.get("metadatas") else {}
+                    meta = (
+                        results.get("metadatas", [[{}]])[0][i] if results.get("metadatas") else {}
+                    )
                     docs.append({"content": doc, "metadata": meta})
             return docs
         except Exception as e:
@@ -248,10 +265,23 @@ class REPL:
 
     def _build_rag_context(self, question: str) -> tuple[str, list[str]]:
         """Build context from ChromaDB for RAG query."""
-        is_comparative = any(kw in question.lower() for kw in [
-            "mas importante", "mejor", "diferencia", "compar", "vs", "versus",
-            "heaviest", "tallest", "best", "worst", "most", "least"
-        ])
+        is_comparative = any(
+            kw in question.lower()
+            for kw in [
+                "mas importante",
+                "mejor",
+                "diferencia",
+                "compar",
+                "vs",
+                "versus",
+                "heaviest",
+                "tallest",
+                "best",
+                "worst",
+                "most",
+                "least",
+            ]
+        )
         k = 15 if is_comparative else self.rag_top_k
 
         docs = self._search_chroma(question, k=k)
@@ -295,7 +325,9 @@ Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información 
                     print()
                     return
                 else:
-                    self.console.print_warning("No documents found in RAG. Falling back to chat mode.")
+                    self.console.print_warning(
+                        "No documents found in RAG. Falling back to chat mode."
+                    )
 
             full_response = ""
             for token in adapter.generate_stream(prompt, max_tokens=1024):
@@ -328,7 +360,9 @@ Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información 
                 is_query, cmd_data = self._parse_input(line)
 
                 if not is_query:
-                    handled, data, msg = self._handle_command(cmd_data["command"], cmd_data["args"])
+                    handled, data, msg = self._handle_command(
+                        cmd_data["command"], cmd_data["args"]
+                    )
 
                     if msg:
                         self.console.console.print(msg)

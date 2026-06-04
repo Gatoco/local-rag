@@ -326,12 +326,13 @@ class TestRAGServiceAuxiliary:
         mock_doc_store.vector_store._collection.count.assert_called_once()
 
     def test_get_document_count_exception(self, rag_service, mock_doc_store):
-        """Test: Excepción en conteo retorna 0"""
+        """Test: Excepción en conteo lanza RAGServiceError"""
+        from src.application.services.rag_service import RAGServiceError
+
         mock_doc_store.vector_store._collection.count.side_effect = Exception("Error")
-        
-        count = rag_service.get_document_count()
-        
-        assert count == 0
+
+        with pytest.raises(RAGServiceError):
+            rag_service.get_document_count()
 
     def test_update_top_k_valid(self, rag_service, mock_chain):
         """Test: Actualizar top_k válido"""

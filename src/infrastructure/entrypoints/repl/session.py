@@ -27,11 +27,13 @@ class Session:
         self.model = model
 
     def add_message(self, role: str, content: str) -> None:
-        self.messages.append({
-            "role": role,
-            "content": content,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-        })
+        self.messages.append(
+            {
+                "role": role,
+                "content": content,
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            }
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {

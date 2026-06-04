@@ -12,3 +12,8 @@ class EmbeddingPort(ABC):
     def embed_query(self, text: str) -> list[float]:
         """Convierte una cadena de texto en un vector numérico."""
         pass
+
+    @abstractmethod
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """Convierte múltiples textos en vectores numéricos (batch)."""
+        pass

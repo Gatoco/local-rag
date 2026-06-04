@@ -28,11 +28,13 @@ logger = logging.getLogger(__name__)
 
 class LlamaCppConfigurationError(Exception):
     """Excepción para errores de configuración del adapter."""
+
     pass
 
 
 class LlamaCppModelLoadError(Exception):
     """Excepción para errores en carga del modelo."""
+
     pass
 
 
@@ -116,8 +118,9 @@ class LlamaCppLLMAdapter(LLMPort):
                 f"El modelo parece corrupto o incompleto (< 100MB): {model_path}"
             )
 
-    def _load_model_with_retry(self, n_retry: int, n_batch: int,
-                                use_mlock: bool, use_mmap: bool) -> Llama:
+    def _load_model_with_retry(
+        self, n_retry: int, n_batch: int, use_mlock: bool, use_mmap: bool
+    ) -> Llama:
         """Carga el modelo con reintentos automáticos."""
         last_error = None
 
@@ -158,8 +161,9 @@ class LlamaCppLLMAdapter(LLMPort):
         tokens = self.generate_stream(prompt, max_tokens)
         return "".join(tokens)
 
-    def generate_stream(self, prompt: str,
-                        max_tokens: int | None = None) -> Generator[str, None, None]:
+    def generate_stream(
+        self, prompt: str, max_tokens: int | None = None
+    ) -> Generator[str, None, None]:
         """
         Genera una respuesta en streaming (token por token).
 
@@ -207,7 +211,7 @@ class LlamaCppLLMAdapter(LLMPort):
     def get_usage_stats(self) -> dict[str, Any]:
         """Obtiene estadísticas de uso del modelo."""
         return {
-            "context_used": self.llm.n_ctx if hasattr(self.llm, 'n_ctx') else 0,
+            "context_used": self.llm.n_ctx if hasattr(self.llm, "n_ctx") else 0,
             "batch_size": self.n_batch,
             "gpu_layers": self.n_gpu_layers,
         }

@@ -43,7 +43,8 @@ class ProviderCommand(Command):
         if new_provider not in PROVIDER_CONFIG:
             return CommandResult(
                 success=False,
-                message=f"Unknown provider: {new_provider}\nAvailable: " + ", ".join(PROVIDER_CONFIG.keys()),
+                message=f"Unknown provider: {new_provider}\nAvailable: "
+                + ", ".join(PROVIDER_CONFIG.keys()),
             )
 
         default_model = PROVIDER_CONFIG[new_provider]["default_model"]

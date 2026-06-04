@@ -44,7 +44,9 @@ def _get_local_adapter() -> "LLMPort":
 
     from src.infrastructure.adapters.llama_cpp_llm_adapter import LlamaCppLLMAdapter
 
-    model_path = os.environ.get("LLAMA_CPP_MODEL_PATH", "./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf")
+    model_path = os.environ.get(
+        "LLAMA_CPP_MODEL_PATH", "./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf"
+    )
     model_path = str(Path(model_path).expanduser().resolve())
 
     if not Path(model_path).exists():

@@ -58,6 +58,7 @@ security = HTTPBearer(auto_error=False)
 # USUARIOS (Base de datos SQLite)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def _init_users_from_env():
     """Inicializa usuarios desde environment variables si no existen."""
     from src.infrastructure.security.database import get_user_repository
@@ -70,14 +71,16 @@ def _init_users_from_env():
     if not user:
         repo.create_user("user", USER_PASSWORD, role="user")
 
+
 _init_users_from_env()
 
 
 class User:
     """Modelo de usuario."""
 
-    def __init__(self, username: str, hashed_password: str,
-                 disabled: bool = False, role: str = "user"):
+    def __init__(
+        self, username: str, hashed_password: str, disabled: bool = False, role: str = "user"
+    ):
         self.username = username
         self.hashed_password = hashed_password
         self.disabled = disabled
@@ -93,13 +96,14 @@ def _user_from_record(record) -> User:
         username=record.username,
         hashed_password=record.hashed_password,
         disabled=record.disabled,
-        role=record.role
+        role=record.role,
     )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # FUNCIONES DE AUTENTICACIÓN
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica una contraseña contra su hash."""
@@ -119,6 +123,7 @@ def get_password_hash(password: str) -> str:
 def get_user(username: str) -> User | None:
     """Obtiene un usuario por username."""
     from src.infrastructure.security.database import get_user_repository
+
     repo = get_user_repository()
     record = repo.get_user(username)
     if record:
@@ -129,6 +134,7 @@ def get_user(username: str) -> User | None:
 def authenticate_user(username: str, password: str) -> User | None:
     """Autentica un usuario con credenciales."""
     from src.infrastructure.security.database import get_user_repository
+
     repo = get_user_repository()
     record = repo.get_user(username)
     if not record:
@@ -138,8 +144,7 @@ def authenticate_user(username: str, password: str) -> User | None:
     return _user_from_record(record)
 
 
-def create_access_token(data: dict[str, Any],
-                       expires_delta: timedelta | None = None) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     """
     Crea un JWT token.
 
@@ -182,9 +187,7 @@ def verify_token(token: str) -> dict[str, Any] | None:
         return None
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> User:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
     """
     Obtiene el usuario actual desde el token JWT.
 
@@ -248,8 +251,7 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     """
     if not user.is_admin():
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Se requieren permisos de administrador"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Se requieren permisos de administrador"
         )
     return user
 
@@ -263,12 +265,14 @@ auth_router = APIRouter()
 
 class TokenRequest(BaseModel):
     """Request para obtener token."""
+
     username: str
     password: str
 
 
 class TokenResponse(BaseModel):
     """Response con token."""
+
     access_token: str
     token_type: str = "bearer"
     expires_in: int
@@ -276,6 +280,7 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     """Response con información de usuario."""
+
     username: str
     role: str
     disabled: bool
@@ -311,14 +316,9 @@ async def login(request: TokenRequest):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(
-        data={"sub": user.username, "role": user.role}
-    )
+    access_token = create_access_token(data={"sub": user.username, "role": user.role})
 
-    return TokenResponse(
-        access_token=access_token,
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    )
+    return TokenResponse(access_token=access_token, expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60)
 
 
 @auth_router.get("/me", response_model=UserResponse, tags=["Auth"])
@@ -333,8 +333,4 @@ async def get_current_user_info(user: User = Depends(get_current_user)):
     - role: Rol del usuario (admin/user)
     - disabled: Si el usuario está deshabilitado
     """
-    return UserResponse(
-        username=user.username,
-        role=user.role,
-        disabled=user.disabled
-    )
+    return UserResponse(username=user.username, role=user.role, disabled=user.disabled)

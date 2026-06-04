@@ -35,7 +35,7 @@ class CloudChatCLI(LLMChatCLI):
     def __init__(self):
         super().__init__(
             config_path="~/.config/mylocalrag.toml",
-            description="RAG Cloud Chat - Multi-provider CLI for cloud LLMs"
+            description="RAG Cloud Chat - Multi-provider CLI for cloud LLMs",
         )
         self.console = Console()
         self._current_adapter: CloudLLMAdapter | None = None
@@ -55,8 +55,7 @@ class CloudChatCLI(LLMChatCLI):
             from langchain_huggingface import HuggingFaceEmbeddings
 
             self._chroma_client = chromadb.PersistentClient(
-                path=CHROMA_DB_DIR,
-                settings=Settings(anonymized_telemetry=False)
+                path=CHROMA_DB_DIR, settings=Settings(anonymized_telemetry=False)
             )
             try:
                 self._chroma_collection = self._chroma_client.get_collection(name=COLLECTION_NAME)
@@ -66,7 +65,7 @@ class CloudChatCLI(LLMChatCLI):
             self._embedding_model = HuggingFaceEmbeddings(
                 model_name="BAAI/bge-large-en-v1.5",
                 model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True}
+                encode_kwargs={"normalize_embeddings": True},
             )
             logger.info("ChromaDB initialized successfully with BGE-Large embeddings")
         except ImportError:
@@ -76,23 +75,20 @@ class CloudChatCLI(LLMChatCLI):
 
     def _search_chroma(self, query: str, k: int = 2) -> list[dict]:
         """Search ChromaDB for similar documents."""
-        if self._chroma_collection is None or not hasattr(self, '_embedding_model'):
+        if self._chroma_collection is None or not hasattr(self, "_embedding_model"):
             return []
         try:
             query_embedding = self._embedding_model.embed_query(query)
             results = self._chroma_collection.query(
-                query_embeddings=[query_embedding],
-                n_results=k,
-                include=["documents", "metadatas"]
+                query_embeddings=[query_embedding], n_results=k, include=["documents", "metadatas"]
             )
             docs = []
             if results and results.get("documents"):
                 for i, doc in enumerate(results["documents"][0]):
-                    metadata = results.get("metadatas", [[{}]])[0][i] if results.get("metadatas") else {}
-                    docs.append({
-                        "content": doc,
-                        "metadata": metadata
-                    })
+                    metadata = (
+                        results.get("metadatas", [[{}]])[0][i] if results.get("metadatas") else {}
+                    )
+                    docs.append({"content": doc, "metadata": metadata})
             return docs
         except Exception as e:
             logger.warning(f"ChromaDB query failed: {e}")
@@ -114,8 +110,7 @@ class CloudChatCLI(LLMChatCLI):
 
         if not api_key:
             raise ValueError(
-                f"No API key for {provider}. "
-                f"Set {api_key_env} in .env or environment variable."
+                f"No API key for {provider}. Set {api_key_env} in .env or environment variable."
             )
 
         return CloudLLMAdapter(provider=provider, model=model, api_key=api_key)
@@ -125,10 +120,7 @@ class CloudChatCLI(LLMChatCLI):
         pass
 
     def stream_generate_chat(
-        self,
-        prompt: str,
-        config: dict,
-        context: list[dict[str, str]] | None = None
+        self, prompt: str, config: dict, context: list[dict[str, str]] | None = None
     ) -> None:
         """
         Generate streaming chat response.
@@ -165,10 +157,7 @@ class CloudChatCLI(LLMChatCLI):
 
             with httpx.Client(timeout=adapter.timeout) as client:
                 with client.stream(
-                    "POST",
-                    f"{adapter.base_url}/chat/completions",
-                    json=payload,
-                    headers=headers
+                    "POST", f"{adapter.base_url}/chat/completions", json=payload, headers=headers
                 ) as response:
                     response.raise_for_status()
 
@@ -199,8 +188,14 @@ class CloudChatCLI(LLMChatCLI):
         self.console.print("[bold]Available Providers:[/bold]")
         for provider_id, cfg in PROVIDER_CONFIG.items():
             api_key_set = bool(os.environ.get(cfg["api_key_env"]))
-            status = "[green]✓ configured[/green]" if api_key_set else "[red]✗ not configured[/red]"
-            default = f" (default: {cfg['default_model']})" if provider_id == self._current_provider else ""
+            status = (
+                "[green]✓ configured[/green]" if api_key_set else "[red]✗ not configured[/red]"
+            )
+            default = (
+                f" (default: {cfg['default_model']})"
+                if provider_id == self._current_provider
+                else ""
+            )
             self.console.print(f"  [cyan]{provider_id}[/cyan]{default} - {status}")
 
     def cmd_provider(self, args: list[str]) -> None:
@@ -227,8 +222,7 @@ class CloudChatCLI(LLMChatCLI):
         self._current_provider = new_provider
         self._current_model = PROVIDER_CONFIG[new_provider]["default_model"]
         self.console.print(
-            f"[green]Switched to {new_provider}[/green] "
-            f"(model: {self._current_model})"
+            f"[green]Switched to {new_provider}[/green] (model: {self._current_model})"
         )
 
     def cmd_models(self, args: list[str]) -> None:
@@ -289,7 +283,7 @@ class CloudChatCLI(LLMChatCLI):
                     self._rag_top_k = new_k
                     self.console.print(f"[green]top_k set to {new_k}[/green]")
             except ValueError:
-                    self.console.print(f"[red]Invalid number: {args[1]}[/red]")
+                self.console.print(f"[red]Invalid number: {args[1]}[/red]")
         else:
             self._rag_mode = not self._rag_mode
             status = "[green]ON[/green]" if self._rag_mode else "[yellow]OFF[/yellow]"
@@ -311,14 +305,14 @@ class CloudChatCLI(LLMChatCLI):
                 results = self._chroma_collection.query(
                     query_embeddings=[sample_query],
                     n_results=3,
-                    include=["documents", "metadatas"]
+                    include=["documents", "metadatas"],
                 )
                 self.console.print("\n[bold]Sample documents:[/bold]")
                 for i, doc in enumerate(results.get("documents", [[]])[0]):
                     meta = results.get("metadatas", [[{}]])[0][i]
                     source = meta.get("source", "unknown") if meta else "unknown"
                     preview = doc[:150] + "..." if len(doc) > 150 else doc
-                    self.console.print(f"  {i+1}. [{source}]")
+                    self.console.print(f"  {i + 1}. [{source}]")
                     self.console.print(f"     {preview}")
         except Exception as e:
             self.console.print(f"[red]Error accessing index: {e}[/red]")
@@ -326,7 +320,9 @@ class CloudChatCLI(LLMChatCLI):
     def _show_rag_status(self) -> None:
         """Show RAG status."""
         self.console.print("[bold]RAG Status:[/bold]")
-        self.console.print(f"  Mode: {'[green]ON[/green]' if self._rag_mode else '[yellow]OFF[/yellow]'}")
+        self.console.print(
+            f"  Mode: {'[green]ON[/green]' if self._rag_mode else '[yellow]OFF[/yellow]'}"
+        )
         self.console.print(f"  Top_k: {self._rag_top_k}")
         if self._chroma_collection:
             try:
@@ -340,25 +336,50 @@ class CloudChatCLI(LLMChatCLI):
     def _is_comparative_query(self, question: str) -> bool:
         """Detect if query is comparative (needs more docs for comparison)."""
         comparative_keywords = [
-            "heaviest", "tallest", "best", "worst", "most", "least",
-            "max", "min", "largest", "smallest", "highest", "lowest",
-            "oldest", "youngest", "fastest", "slowest", "strongest",
-            "biggest", "shortest", "slowest", "richest", "poorest",
-            "compare", "versus", "vs", "difference", "between"
+            "heaviest",
+            "tallest",
+            "best",
+            "worst",
+            "most",
+            "least",
+            "max",
+            "min",
+            "largest",
+            "smallest",
+            "highest",
+            "lowest",
+            "oldest",
+            "youngest",
+            "fastest",
+            "slowest",
+            "strongest",
+            "biggest",
+            "shortest",
+            "slowest",
+            "richest",
+            "poorest",
+            "compare",
+            "versus",
+            "vs",
+            "difference",
+            "between",
         ]
         q_lower = question.lower()
         return any(kw in q_lower for kw in comparative_keywords)
 
-    def _deduplicate_docs(self, docs: list[dict], max_chars: int = 800) -> tuple[list[dict], list[str]]:
+    def _deduplicate_docs(
+        self, docs: list[dict], max_chars: int = 800
+    ) -> tuple[list[dict], list[str]]:
         """Deduplicate docs by Fighter_Name extracted from content. Keeps one entry per fighter."""
         import re
+
         seen_fighters: set[str] = set()
         unique_docs = []
         sources_used = []
 
         for doc in docs:
             content = doc.get("content", "")
-            name_match = re.search(r'Fighter_Name:\s*([^,]+)', content)
+            name_match = re.search(r"Fighter_Name:\s*([^,]+)", content)
             fighter_name = name_match.group(1).strip() if name_match else content[:50]
 
             if fighter_name not in seen_fighters:
@@ -375,7 +396,9 @@ class CloudChatCLI(LLMChatCLI):
         """Execute RAG query with streaming."""
         if self._current_adapter is None:
             try:
-                self._current_adapter = self._get_adapter(self._current_provider, self._current_model)
+                self._current_adapter = self._get_adapter(
+                    self._current_provider, self._current_model
+                )
             except Exception as e:
                 self.console.print(f"[red]No adapter available: {e}[/red]")
                 return
@@ -400,12 +423,15 @@ class CloudChatCLI(LLMChatCLI):
 
         context = "\n\n".join(context_parts)
 
-        prompt = f"""Contexto de documentos:
-{context}
-
-Pregunta: {question}
-
-Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información del contexto para responder. Si no hay suficiente información, responde "No tengo información suficiente en los documentos". no inventes respuestas."""
+        prompt = (
+            f"Contexto de documentos:\n"
+            f"{context}\n\n"
+            f"Pregunta: {question}\n\n"
+            f"Responde de forma directa, sin bloques de pensamiento. "
+            f"Usa SOLO la información del contexto para responder. "
+            f'Si no hay suficiente información, responde "No tengo información suficiente '
+            f'en los documentos". No inventes respuestas.'
+        )
 
         try:
             payload = self._current_adapter._build_payload(prompt, None)
@@ -418,13 +444,13 @@ Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información 
                     "POST",
                     f"{self._current_adapter.base_url}/chat/completions",
                     json=payload,
-                    headers=headers
+                    headers=headers,
                 ) as response:
                     response.raise_for_status()
 
                     print("\n[Sources used:", end="", flush=True)
                     for i, src in enumerate(sources_used):
-                        print(f" {i+1}: {src}", end="", flush=True)
+                        print(f" {i + 1}: {src}", end="", flush=True)
                     print("]\n", flush=True)
 
                     for line in response.iter_lines():

@@ -28,7 +28,7 @@ class History:
     def add(self, role: str, content: str) -> None:
         self._entries.append(HistoryEntry(role, content))
         if len(self._entries) > self.max_entries:
-            self._entries = self._entries[-self.max_entries:]
+            self._entries = self._entries[-self.max_entries :]
 
     def get_messages(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self._entries]

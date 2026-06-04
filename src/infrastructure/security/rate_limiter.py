@@ -45,9 +45,12 @@ class RedisRateLimiter:
         allowed, headers = limiter.is_allowed("192.168.1.1")
     """
 
-    def __init__(self, redis_url: str | None = None,
-                   requests_per_minute: int = 60,
-                   requests_per_hour: int = 1000):
+    def __init__(
+        self,
+        redis_url: str | None = None,
+        requests_per_minute: int = 60,
+        requests_per_hour: int = 1000,
+    ):
         self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
         self.requests_per_minute = requests_per_minute
         self.requests_per_hour = requests_per_hour
@@ -68,7 +71,7 @@ class RedisRateLimiter:
         try:
             r = self._get_redis()
             cutoff = time.time() - window_seconds
-            r.zremrangebyscore(self._make_key(key, str(window_seconds)), '-inf', cutoff)
+            r.zremrangebyscore(self._make_key(key, str(window_seconds)), "-inf", cutoff)
         except redis.ConnectionError:
             logger.warning("Redis unavailable, rate limiting disabled")
 
@@ -78,7 +81,7 @@ class RedisRateLimiter:
             r = self._get_redis()
             redis_key = self._make_key(key, str(window_seconds))
             cutoff = time.time() - window_seconds
-            count = r.zcount(redis_key, cutoff, '+inf')
+            count = r.zcount(redis_key, cutoff, "+inf")
             return cast(int, count)
         except redis.ConnectionError:
             return 0
@@ -124,7 +127,9 @@ class RedisRateLimiter:
 
         headers = {
             "X-RateLimit-Limit-Minute": str(self.requests_per_minute),
-            "X-RateLimit-Remaining-Minute": str(max(0, self.requests_per_minute - count_minute - 1)),
+            "X-RateLimit-Remaining-Minute": str(
+                max(0, self.requests_per_minute - count_minute - 1)
+            ),
             "X-RateLimit-Reset-Minute": str(reset_minute),
             "X-RateLimit-Limit-Hour": str(self.requests_per_hour),
             "X-RateLimit-Remaining-Hour": str(max(0, self.requests_per_hour - count_hour - 1)),
@@ -155,9 +160,9 @@ class RateLimiter:
             raise HTTPException(429, "Too many requests")
     """
 
-    def __init__(self, requests_per_minute: int = 60,
-                       requests_per_hour: int = 1000,
-                       burst_limit: int = 10):
+    def __init__(
+        self, requests_per_minute: int = 60, requests_per_hour: int = 1000, burst_limit: int = 10
+    ):
         self.requests_per_minute = requests_per_minute
         self.requests_per_hour = requests_per_hour
         self.burst_limit = burst_limit
@@ -177,10 +182,7 @@ class RateLimiter:
         now = time.time()
         cutoff = now - window_seconds
 
-        self._requests[key] = [
-            ts for ts in self._requests[key]
-            if ts > cutoff
-        ]
+        self._requests[key] = [ts for ts in self._requests[key] if ts > cutoff]
 
     def _get_request_count(self, key: str, window_seconds: int) -> int:
         """Obtiene número de requests en la ventana."""
@@ -254,7 +256,9 @@ class RateLimiter:
         # Actualizar headers
         if not headers:
             headers["X-RateLimit-Limit"] = str(self.requests_per_minute)
-            headers["X-RateLimit-Remaining"] = str(max(0, self.requests_per_minute - minute_count - 1))
+            headers["X-RateLimit-Remaining"] = str(
+                max(0, self.requests_per_minute - minute_count - 1)
+            )
             headers["X-RateLimit-Reset"] = str(int(now + 60))
 
         return True, headers
@@ -287,9 +291,7 @@ def get_rate_limiter() -> RateLimiter:
     global _global_limiter
     if _global_limiter is None:
         _global_limiter = RateLimiter(
-            requests_per_minute=60,
-            requests_per_hour=1000,
-            burst_limit=10
+            requests_per_minute=60, requests_per_hour=1000, burst_limit=10
         )
     return _global_limiter
 
@@ -306,11 +308,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     - Backend Redis para escalabilidad horizontal
     """
 
-    def __init__(self, app, requests_per_minute: int = 60,
-                       requests_per_hour: int = 1000,
-                       burst_limit: int = 10,
-                       whitelist: list | None = None,
-                       redis_url: str | None = None):
+    def __init__(
+        self,
+        app,
+        requests_per_minute: int = 60,
+        requests_per_hour: int = 1000,
+        burst_limit: int = 10,
+        whitelist: list | None = None,
+        redis_url: str | None = None,
+    ):
         super().__init__(app)
         self.limiter = RedisRateLimiter(
             redis_url=redis_url,
@@ -329,7 +335,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Priorizar user ID si está autenticado
         user_id = None
-        if hasattr(request.state, 'user') and request.state.user:
+        if hasattr(request.state, "user") and request.state.user:
             user_id = f"user:{request.state.user.username}"
 
         key = user_id or f"ip:{client_ip}"
@@ -347,9 +353,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 content={
                     "detail": "Demasiadas solicitudes",
                     "error": "rate_limit_exceeded",
-                    "retry_after": headers.get("X-RateLimit-Reset", "60")
+                    "retry_after": headers.get("X-RateLimit-Reset", "60"),
                 },
-                headers=headers
+                headers=headers,
             )
 
         # Ejecutar request
@@ -362,10 +368,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def rate_limit_middleware(requests_per_minute: int = 60,
-                          requests_per_hour: int = 1000,
-                          burst_limit: int = 10,
-                          whitelist: list | None = None):
+def rate_limit_middleware(
+    requests_per_minute: int = 60,
+    requests_per_hour: int = 1000,
+    burst_limit: int = 10,
+    whitelist: list | None = None,
+):
     """
     Factory para crear middleware de rate limiting.
 
@@ -383,5 +391,5 @@ def rate_limit_middleware(requests_per_minute: int = 60,
         requests_per_minute=requests_per_minute,
         requests_per_hour=requests_per_hour,
         burst_limit=burst_limit,
-        whitelist=whitelist
+        whitelist=whitelist,
     )

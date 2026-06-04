@@ -11,20 +11,24 @@ from typing import Any
 
 import httpx
 
+from src.domain.ports.llm_port import LLMPort
+
 logger = logging.getLogger(__name__)
 
 
 class LMStudioConfigurationError(Exception):
     """Error de configuración de LM Studio."""
+
     pass
 
 
 class LMStudioConnectionError(Exception):
     """Error de conexión con LM Studio."""
+
     pass
 
 
-class LMStudioLLMAdapter:
+class LMStudioLLMAdapter(LLMPort):
     """
     Adapter para LM Studio.
 
@@ -95,7 +99,9 @@ class LMStudioLLMAdapter:
         }
 
         try:
-            with self._client.stream("POST", f"{self.base_url}/chat/completions", json=payload) as response:
+            with self._client.stream(
+                "POST", f"{self.base_url}/chat/completions", json=payload
+            ) as response:
                 response.raise_for_status()
                 for line in response.iter_lines():
                     if line.startswith("data: "):
@@ -106,7 +112,9 @@ class LMStudioLLMAdapter:
                         if token:
                             yield token
         except httpx.TimeoutException:
-            raise LMStudioConnectionError(f"Timeout connecting to LM Studio at {self.base_url}") from None
+            raise LMStudioConnectionError(
+                f"Timeout connecting to LM Studio at {self.base_url}"
+            ) from None
         except Exception as e:
             raise LMStudioConnectionError(f"Error communicating with LM Studio: {e}") from e
 
@@ -114,6 +122,7 @@ class LMStudioLLMAdapter:
         """Parsea token de SSE data."""
         try:
             import json
+
             parsed = json.loads(data)
             choices = parsed.get("choices", [])
             if choices:

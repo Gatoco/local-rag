@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CacheEntry:
     """Entrada de caché con metadata."""
+
     value: Any
     created_at: float = field(default_factory=time.time)
     access_count: int = 0
@@ -108,7 +109,7 @@ class SemanticCache:
         """
         # Normalizar: lowercase, strip whitespace
         normalized = query.lower().strip()
-        return hashlib.sha256(normalized.encode('utf-8')).hexdigest()[:16]
+        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
 
     def get(self, query: str) -> dict[str, Any] | None:
         """
@@ -244,8 +245,7 @@ class SemanticCache:
             Número de entradas eliminadas
         """
         expired_hashes = [
-            hash for hash, entry in self._cache.items()
-            if entry.is_expired(self.ttl_seconds)
+            hash for hash, entry in self._cache.items() if entry.is_expired(self.ttl_seconds)
         ]
 
         for hash in expired_hashes:

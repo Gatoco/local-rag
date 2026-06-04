@@ -10,17 +10,19 @@ from rich.console import Console as RichConsole
 from rich.markdown import Markdown
 from rich.theme import Theme
 
-custom_theme = Theme({
-    "info": "cyan",
-    "warning": "yellow",
-    "error": "red",
-    "success": "green",
-    "prompt": "bold cyan",
-    "mode.local": "green",
-    "mode.cloud": "cyan",
-    "rag.on": "green",
-    "rag.off": "yellow",
-})
+custom_theme = Theme(
+    {
+        "info": "cyan",
+        "warning": "yellow",
+        "error": "red",
+        "success": "green",
+        "prompt": "bold cyan",
+        "mode.local": "green",
+        "mode.cloud": "cyan",
+        "rag.on": "green",
+        "rag.off": "yellow",
+    }
+)
 
 
 class Console:

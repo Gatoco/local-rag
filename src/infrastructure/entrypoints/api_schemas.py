@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # REQUEST SCHEMAS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class QueryRequest(BaseModel):
     """
     Request para consultar el sistema RAG.
@@ -22,8 +23,9 @@ class QueryRequest(BaseModel):
         top_k: Número de documentos a recuperar (default: 4)
         max_tokens: Máximo de tokens en la respuesta (default: 512)
         stream: Si True, retorna respuesta en streaming (default: False)
-        provider: Proveedor cloud (openai, anthropic, google, groq, minimax, deepseek). None = local.
-        api_key: API key para provider cloud (None = usa .env)
+        # provider: Proveedor cloud
+        # (openai, anthropic, google, groq, minimax, deepseek). None = local
+        api_key: API key para provider cloud (None = usa variable de entorno)
         model: Modelo específico del provider (None = usa default)
 
     Example:
@@ -43,44 +45,36 @@ class QueryRequest(BaseModel):
         min_length=1,
         max_length=10000,
         description="La pregunta del usuario",
-        examples=["¿Qué es el cálculo diferencial?"]
+        examples=["¿Qué es el cálculo diferencial?"],
     )
     top_k: int = Field(
-        default=4,
-        ge=1,
-        le=20,
-        description="Número de documentos a recuperar",
-        examples=[4]
+        default=4, ge=1, le=20, description="Número de documentos a recuperar", examples=[4]
     )
     max_tokens: int = Field(
-        default=512,
-        ge=1,
-        le=4096,
-        description="Máximo de tokens en la respuesta",
-        examples=[512]
+        default=512, ge=1, le=4096, description="Máximo de tokens en la respuesta", examples=[512]
     )
     stream: bool = Field(
-        default=False,
-        description="Si True, retorna respuesta en streaming",
-        examples=[False]
+        default=False, description="Si True, retorna respuesta en streaming", examples=[False]
     )
     provider: str | None = Field(
         default=None,
-        description="Proveedor cloud (openai, anthropic, google, groq, minimax, deepseek). None = local",
-        examples=[None, "openai", "minimax"]
+        description=(
+            "Proveedor cloud (openai, anthropic, google, groq, minimax, deepseek). None = local"
+        ),
+        examples=[None, "openai", "minimax"],
     )
     api_key: str | None = Field(
         default=None,
         description="API key para provider cloud. None = usa variable de entorno",
-        examples=[None]
+        examples=[None],
     )
     model: str | None = Field(
         default=None,
         description="Modelo específico del provider. None = usa default",
-        examples=[None, "gpt-4o-mini", "MiniMax-M2.7-8k"]
+        examples=[None, "gpt-4o-mini", "MiniMax-M2.7-8k"],
     )
 
-    @field_validator('question')
+    @field_validator("question")
     @classmethod
     def validate_question_not_empty(cls, v: str) -> str:
         """Valida que la pregunta no esté vacía."""
@@ -108,12 +102,10 @@ class IngestFileRequest(BaseModel):
         ...,
         min_length=1,
         description="Ruta al archivo a ingerir",
-        examples=["./docs_to_ingest/matematicas.pdf"]
+        examples=["./docs_to_ingest/matematicas.pdf"],
     )
     force: bool = Field(
-        default=False,
-        description="Si True, re-ingesta incluso si ya existe",
-        examples=[False]
+        default=False, description="Si True, re-ingesta incluso si ya existe", examples=[False]
     )
 
 
@@ -138,17 +130,13 @@ class IngestDirectoryRequest(BaseModel):
         ...,
         min_length=1,
         description="Ruta al directorio a ingerir",
-        examples=["./docs_to_ingest"]
+        examples=["./docs_to_ingest"],
     )
     recursive: bool = Field(
-        default=True,
-        description="Búsqueda recursiva en subdirectorios",
-        examples=[True]
+        default=True, description="Búsqueda recursiva en subdirectorios", examples=[True]
     )
     force: bool = Field(
-        default=False,
-        description="Si True, re-ingesta incluso si ya existe",
-        examples=[False]
+        default=False, description="Si True, re-ingesta incluso si ya existe", examples=[False]
     )
 
 
@@ -166,16 +154,14 @@ class DeleteDocumentRequest(BaseModel):
     """
 
     document_id: str = Field(
-        ...,
-        min_length=1,
-        description="ID del documento a eliminar",
-        examples=["chunk_001"]
+        ..., min_length=1, description="ID del documento a eliminar", examples=["chunk_001"]
     )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # RESPONSE SCHEMAS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class SourceDocument(BaseModel):
     """
@@ -394,6 +380,8 @@ class ListDocumentsResponse(BaseModel):
     """
 
     total: int = Field(..., description="Total de documentos")
-    documents: list[dict[str, Any]] = Field(default_factory=list, description="Lista de documentos")
+    documents: list[dict[str, Any]] = Field(
+        default_factory=list, description="Lista de documentos"
+    )
     limit: int = Field(default=20, description="Límite aplicado")
     offset: int = Field(default=0, description="Offset aplicado")

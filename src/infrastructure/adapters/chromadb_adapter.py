@@ -6,8 +6,25 @@ from src.domain.ports.document_store_port import DocumentStorePort
 from src.domain.ports.embedding_port import EmbeddingPort
 
 
+class ChromaDBError(Exception):
+    """Error general de ChromaDB."""
+
+    pass
+
+
+class ChromaDBConnectionError(ChromaDBError):
+    """Error de conexión con ChromaDB."""
+
+    pass
+
+
 class ChromaDBAdapter(DocumentStorePort):
-    def __init__(self, embedding_port: EmbeddingPort, persist_directory: str = "./chroma_db", collection_name: str = "local_rag_docs"):
+    def __init__(
+        self,
+        embedding_port: EmbeddingPort,
+        persist_directory: str = "./chroma_db",
+        collection_name: str = "local_rag_docs",
+    ):
         """
         Inicializa la base de datos vectorial ChromaDB.
 
@@ -24,10 +41,12 @@ class ChromaDBAdapter(DocumentStorePort):
         self.vector_store = Chroma(
             collection_name=self.collection_name,
             embedding_function=self.embedding_model,
-            persist_directory=self.persist_directory
+            persist_directory=self.persist_directory,
         )
 
-    def add_documents(self, documents: list[Any], ids: list[str] | None = None, batch_size: int = 500):
+    def add_documents(
+        self, documents: list[Any], ids: list[str] | None = None, batch_size: int = 500
+    ):
         """
         Añade una lista de documentos al almacén vectorial en lotes.
 
@@ -35,20 +54,33 @@ class ChromaDBAdapter(DocumentStorePort):
             documents: Lista de documentos a añadir
             ids: Lista de IDs para los documentos (opcional)
             batch_size: Tamaño del lote para evitar límites de ChromaDB (default: 500)
+
+        Raises:
+            ChromaDBError: Si hay un error al añadir documentos
         """
-        # Dividir en batches para evitar límite de ChromaDB
-        for i in range(0, len(documents), batch_size):
-            batch_docs = documents[i:i + batch_size]
-            batch_ids = ids[i:i + batch_size] if ids else None
-            self.vector_store.add_documents(documents=batch_docs, ids=batch_ids)
+        try:
+            for i in range(0, len(documents), batch_size):
+                batch_docs = documents[i : i + batch_size]
+                batch_ids = ids[i : i + batch_size] if ids else None
+                self.vector_store.add_documents(documents=batch_docs, ids=batch_ids)
+        except Exception as e:
+            raise ChromaDBError(f"Error adding documents to ChromaDB: {e}") from e
 
     def search_similar(self, query: str, k: int = 4) -> list[Any]:
-        """Busca los documentos más parecidos semánticamente a la consulta."""
-        result = self.vector_store.similarity_search(query, k=k)
-        return cast(list[Any], result)
+        """
+        Busca los documentos más parecidos semánticamente a la consulta.
+
+        Raises:
+            ChromaDBError: Si hay un error en la búsqueda
+        """
+        try:
+            result = self.vector_store.similarity_search(query, k=k)
+            return cast(list[Any], result)
+        except Exception as e:
+            raise ChromaDBError(f"Error searching in ChromaDB: {e}") from e
 
     def get_retriever(self, search_kwargs: dict[str, Any] | None = None) -> Any:
         """Devuelve un objeto retriever que LangChain usará en la pipeline RAG."""
         if search_kwargs is None:
-            search_kwargs = {"k": 4} # Por defecto recuperamos 4 fragmentos de texto
+            search_kwargs = {"k": 4}  # Por defecto recuperamos 4 fragmentos de texto
         return self.vector_store.as_retriever(search_kwargs=search_kwargs)

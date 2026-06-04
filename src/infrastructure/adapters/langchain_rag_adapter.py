@@ -77,15 +77,11 @@ class LangChainRAGAdapter(RAGChainPort):
         self.prompt = ChatPromptTemplate.from_template(self.prompt_template)
 
         # Crear cadena de combinación de documentos
-        self.combine_docs_chain = create_stuff_documents_chain(
-            llm=self.llm,
-            prompt=self.prompt
-        )
+        self.combine_docs_chain = create_stuff_documents_chain(llm=self.llm, prompt=self.prompt)
 
         # Crear cadena RAG completa
         self.rag_chain = create_retrieval_chain(
-            retriever=self.get_retriever(),
-            combine_docs_chain=self.combine_docs_chain
+            retriever=self.get_retriever(), combine_docs_chain=self.combine_docs_chain
         )
 
         logger.debug("Cadenas LangChain inicializadas correctamente")
@@ -110,9 +106,7 @@ class LangChainRAGAdapter(RAGChainPort):
         try:
             response = self.rag_chain.invoke({"input": input_text})
 
-            logger.debug(
-                f"RAG chain completada: {len(response.get('context', []))} documentos"
-            )
+            logger.debug(f"RAG chain completada: {len(response.get('context', []))} documentos")
 
             return {
                 "answer": response.get("answer", ""),

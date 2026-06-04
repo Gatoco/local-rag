@@ -86,8 +86,15 @@ def create_router(rag_service: RAGService) -> APIRouter:
         """
         try:
             # Obtener configuración del modelo desde RAGService
-            model_info = rag_service.chain.llm.model_path if hasattr(rag_service.chain, 'llm') and hasattr(rag_service.chain.llm, 'model_path') else "unknown"
-            embedding_model = "sentence-transformers/all-MiniLM-L6-v2"  # Podría obtenerse del adapter
+            model_info = (
+                rag_service.chain.llm.model_path
+                if hasattr(rag_service.chain, "llm")
+                and hasattr(rag_service.chain.llm, "model_path")
+                else "unknown"
+            )
+            embedding_model = (
+                "sentence-transformers/all-MiniLM-L6-v2"  # Podría obtenerse del adapter
+            )
 
             # Obtener conteo de documentos
             try:
@@ -185,18 +192,22 @@ def create_router(rag_service: RAGService) -> APIRouter:
 
             sources = []
             for doc in result.get("source_documents", []):
-                if hasattr(doc, 'page_content'):
-                    sources.append(SourceDocument(
-                        content=doc.page_content,
-                        metadata=doc.metadata,
-                        id=getattr(doc, 'id', None),
-                    ))
+                if hasattr(doc, "page_content"):
+                    sources.append(
+                        SourceDocument(
+                            content=doc.page_content,
+                            metadata=doc.metadata,
+                            id=getattr(doc, "id", None),
+                        )
+                    )
                 elif isinstance(doc, dict):
-                    sources.append(SourceDocument(
-                        content=doc.get('page_content', ''),
-                        metadata=doc.get('metadata', {}),
-                        id=doc.get('id'),
-                    ))
+                    sources.append(
+                        SourceDocument(
+                            content=doc.get("page_content", ""),
+                            metadata=doc.get("metadata", {}),
+                            id=doc.get("id"),
+                        )
+                    )
 
             model_name = request.provider or "local"
             if request.model:
@@ -214,10 +225,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
 
         except Exception as e:
             logger.error(f"Query failed: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error executing query: {str(e)}"
-            ) from e
+            raise HTTPException(status_code=500, detail=f"Error executing query: {str(e)}") from e
 
     @router.post("/query/stream", tags=["Query"])
     async def query_stream(request: QueryRequest):
@@ -241,29 +249,25 @@ def create_router(rag_service: RAGService) -> APIRouter:
 
         try:
             # Obtener adapter y usar streaming nativo
-            if hasattr(rag_service.chain, 'llm') and hasattr(rag_service.chain.llm, 'generate_stream'):
+            if hasattr(rag_service.chain, "llm") and hasattr(
+                rag_service.chain.llm, "generate_stream"
+            ):
                 return StreamingResponse(
                     stream_generator(rag_service.chain.llm, request.question, request.max_tokens),
                     media_type="text/event-stream",
                     headers={
                         "Cache-Control": "no-cache",
                         "X-Accel-Buffering": "no",
-                    }
+                    },
                 )
             else:
                 # Fallback: consulta normal
                 result = await query(request)
-                return StreamingResponse(
-                    iter([result.answer]),
-                    media_type="text/plain"
-                )
+                return StreamingResponse(iter([result.answer]), media_type="text/plain")
 
         except Exception as e:
             logger.error(f"Stream query failed: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error in stream query: {str(e)}"
-            ) from e
+            raise HTTPException(status_code=500, detail=f"Error in stream query: {str(e)}") from e
 
     async def stream_generator(llm, question: str, max_tokens: int) -> AsyncGenerator[str, None]:
         """
@@ -309,8 +313,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
             # Validar que el archivo existe
             if not os.path.isfile(request.file_path):
                 raise HTTPException(
-                    status_code=404,
-                    detail=f"Archivo no encontrado: {request.file_path}"
+                    status_code=404, detail=f"Archivo no encontrado: {request.file_path}"
                 )
 
             # Ejecutar ingestión
@@ -332,10 +335,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
             raise HTTPException(status_code=404, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Ingest file failed: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error ingesting file: {str(e)}"
-            ) from e
+            raise HTTPException(status_code=500, detail=f"Error ingesting file: {str(e)}") from e
 
     @router.post("/ingest/directory", response_model=IngestResponse, tags=["Ingestion"])
     async def ingest_directory(request: IngestDirectoryRequest):
@@ -364,8 +364,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
             # Validar que el directorio existe
             if not os.path.isdir(request.dir_path):
                 raise HTTPException(
-                    status_code=404,
-                    detail=f"Directorio no encontrado: {request.dir_path}"
+                    status_code=404, detail=f"Directorio no encontrado: {request.dir_path}"
                 )
 
             # Ejecutar ingestión
@@ -388,8 +387,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
         except Exception as e:
             logger.error(f"Ingest directory failed: {e}", exc_info=True)
             raise HTTPException(
-                status_code=500,
-                detail=f"Error ingesting directory: {str(e)}"
+                status_code=500, detail=f"Error ingesting directory: {str(e)}"
             ) from e
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -426,8 +424,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
         except Exception as e:
             logger.error(f"List documents failed: {e}")
             raise HTTPException(
-                status_code=500,
-                detail=f"Error listing documents: {str(e)}"
+                status_code=500, detail=f"Error listing documents: {str(e)}"
             ) from e
 
     @router.delete("/documents", response_model=DeleteResponse, tags=["Documents"])
@@ -459,8 +456,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
         except Exception as e:
             logger.error(f"Delete document failed: {e}")
             raise HTTPException(
-                status_code=500,
-                detail=f"Error deleting document: {str(e)}"
+                status_code=500, detail=f"Error deleting document: {str(e)}"
             ) from e
 
     @router.get("/llm/providers", tags=["LLM"])
@@ -477,25 +473,37 @@ def create_router(rag_service: RAGService) -> APIRouter:
             Response:
             {
                 "providers": [
-                    {"id": "openai", "models": ["gpt-4o", "gpt-4o-mini"], "default": "gpt-4o-mini"},
-                    {"id": "anthropic", "models": ["claude-opus-4", "claude-sonnet-4"], "default": "claude-sonnet-4"},
+                    {
+                        "id": "openai",
+                        "models": ["gpt-4o", "gpt-4o-mini"],
+                        "default": "gpt-4o-mini",
+                    },
+                    {
+                        "id": "anthropic",
+                        "models": ["claude-opus-4", "claude-sonnet-4"],
+                        "default": "claude-sonnet-4",
+                    },
                     ...
                 ],
-                "local": {"name": "llama.cpp", "model": "mistral-7b-instruct-v0.3.Q4_K_M.gguf"}
-            }
+                "local": {
+                    "name": "llama.cpp",
+                    "model": "mistral-7b-instruct-v0.3.Q4_K_M.gguf"
+                }
         """
         providers = []
         for provider_id, config in PROVIDER_CONFIG.items():
-            providers.append({
-                "id": provider_id,
-                "models": config["models"],
-                "default_model": config["default_model"],
-                "supports_streaming": config["supports_streaming"],
-            })
+            providers.append(
+                {
+                    "id": provider_id,
+                    "models": config["models"],
+                    "default_model": config["default_model"],
+                    "supports_streaming": config["supports_streaming"],
+                }
+            )
 
         local_info = {"name": "llama.cpp"}
         try:
-            if hasattr(rag_service.llm, 'model_path'):
+            if hasattr(rag_service.llm, "model_path"):
                 local_info["model"] = os.path.basename(rag_service.llm.model_path)
         except Exception:
             pass
@@ -527,7 +535,10 @@ def create_router(rag_service: RAGService) -> APIRouter:
         if provider not in PROVIDER_CONFIG:
             raise HTTPException(
                 status_code=404,
-                detail=f"Provider '{provider}' no encontrado. Providers: {list(PROVIDER_CONFIG.keys())}"
+                detail=(
+                    f"Provider '{provider}' no encontrado. "
+                    f"Providers: {list(PROVIDER_CONFIG.keys())}"
+                ),
             )
 
         config = PROVIDER_CONFIG[provider]
@@ -571,11 +582,12 @@ def create_app(rag_service: RAGService, enable_auth: bool = True) -> "FastAPI":
             requests_per_minute=60,
             requests_per_hour=1000,
             burst_limit=10,
-            whitelist=["127.0.0.1"]  # localhost sin rate limit
+            whitelist=["127.0.0.1"],  # localhost sin rate limit
         )
 
         # Incluir router de autenticación
         from src.infrastructure.security.auth import auth_router
+
         app.include_router(auth_router, prefix="/api/v1", tags=["Auth"])
 
         logger.info("Seguridad habilitada: JWT + Rate Limiting")

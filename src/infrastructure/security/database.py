@@ -33,6 +33,7 @@ DATABASE_PATH = os.getenv("DATABASE_PATH", "./data/users.db")
 @dataclass
 class UserRecord:
     """Registro de usuario en la base de datos."""
+
     username: str
     hashed_password: str
     role: str
@@ -82,7 +83,7 @@ class UserRepository:
         with self.db.get_connection() as conn:
             cursor = conn.execute(
                 "SELECT username, hashed_password, role, disabled FROM users WHERE username = ?",
-                (username,)
+                (username,),
             )
             row = cursor.fetchone()
             if row:
@@ -90,7 +91,7 @@ class UserRepository:
                     username=row["username"],
                     hashed_password=row["hashed_password"],
                     role=row["role"],
-                    disabled=bool(row["disabled"])
+                    disabled=bool(row["disabled"]),
                 )
             return None
 
@@ -100,7 +101,7 @@ class UserRepository:
         with self.db.get_connection() as conn:
             conn.execute(
                 "INSERT INTO users (username, hashed_password, role) VALUES (?, ?, ?)",
-                (username, hashed, role)
+                (username, hashed, role),
             )
         return UserRecord(username=username, hashed_password=hashed, role=role, disabled=False)
 
@@ -109,8 +110,7 @@ class UserRepository:
         hashed = ph.hash(new_password)
         with self.db.get_connection() as conn:
             cursor = conn.execute(
-                "UPDATE users SET hashed_password = ? WHERE username = ?",
-                (hashed, username)
+                "UPDATE users SET hashed_password = ? WHERE username = ?", (hashed, username)
             )
             return cast(bool, cursor.rowcount > 0)
 
@@ -129,7 +129,7 @@ class UserRepository:
                     username=row["username"],
                     hashed_password=row["hashed_password"],
                     role=row["role"],
-                    disabled=bool(row["disabled"])
+                    disabled=bool(row["disabled"]),
                 )
                 for row in cursor.fetchall()
             ]

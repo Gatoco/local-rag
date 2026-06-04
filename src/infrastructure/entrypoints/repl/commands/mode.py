@@ -68,18 +68,22 @@ class ModeCommand(Command):
         ]
 
         if current_mode == "local":
-            status_lines.extend([
-                f"Model: [cyan]{model_name}[/cyan]",
-                "Backend: [green]llama.cpp[/green]",
-            ])
+            status_lines.extend(
+                [
+                    f"Model: [cyan]{model_name}[/cyan]",
+                    "Backend: [green]llama.cpp[/green]",
+                ]
+            )
         else:
             provider = context.get("provider", "minimax")
             model = context.get("model", "MiniMax-M2.7")
-            status_lines.extend([
-                f"Provider: [cyan]{provider}[/cyan]",
-                f"Model: [cyan]{model}[/cyan]",
-                "Backend: [cyan]cloud[/cyan]",
-            ])
+            status_lines.extend(
+                [
+                    f"Provider: [cyan]{provider}[/cyan]",
+                    f"Model: [cyan]{model}[/cyan]",
+                    "Backend: [cyan]cloud[/cyan]",
+                ]
+            )
 
         status_lines.append("")
 
@@ -124,7 +128,7 @@ class ModeCommand(Command):
             return CommandResult(
                 success=False,
                 message="No local model found.\n"
-                       "Set LLAMA_CPP_MODEL_PATH in .env or add a GGUF model to ./models",
+                "Set LLAMA_CPP_MODEL_PATH in .env or add a GGUF model to ./models",
             )
 
         model_name = default_model.split("/")[-1]

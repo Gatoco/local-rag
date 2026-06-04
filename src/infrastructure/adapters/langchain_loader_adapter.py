@@ -26,13 +26,13 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
 
         Args:
             chunk_size (int): Tamaño de cada fragmento de texto (en caracteres).
-            chunk_overlap (int): Superposición entre fragmentos para no perder contexto en los bordes.
+            chunk_overlap (int): Superposición entre fragmentos para no perder contexto.
         """
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len,
-            is_separator_regex=False
+            is_separator_regex=False,
         )
 
     def load_and_split(self, file_path: str) -> list[Any]:
@@ -41,25 +41,25 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
             raise FileNotFoundError(f"No existe el archivo: {file_path}")
 
         loader: Any = None
-        if file_path.endswith('.pdf'):
+        if file_path.endswith(".pdf"):
             return self._load_pdf_with_ocr(file_path)
-        elif file_path.endswith('.docx'):
+        elif file_path.endswith(".docx"):
             loader = Docx2txtLoader(file_path)
-        elif file_path.endswith('.txt'):
+        elif file_path.endswith(".txt"):
             loader = TextLoader(file_path, encoding="utf-8")
-        elif file_path.endswith('.md'):
+        elif file_path.endswith(".md"):
             loader = TextLoader(file_path, encoding="utf-8")
-        elif file_path.endswith('.json'):
+        elif file_path.endswith(".json"):
             return self._load_json_as_documents(file_path)
-        elif file_path.endswith(('.xlsx', '.xls')):
+        elif file_path.endswith((".xlsx", ".xls")):
             loader = UnstructuredExcelLoader(file_path, mode="elements")
-        elif file_path.endswith('.pptx'):
+        elif file_path.endswith(".pptx"):
             loader = UnstructuredPowerPointLoader(file_path, mode="elements")
-        elif file_path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp')):
+        elif file_path.endswith((".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp")):
             loader = UnstructuredImageLoader(file_path, mode="elements")
-        elif file_path.endswith(('.html', '.htm')):
+        elif file_path.endswith((".html", ".htm")):
             loader = BSHTMLLoader(file_path)
-        elif file_path.endswith('.csv'):
+        elif file_path.endswith(".csv"):
             try:
                 loader = CSVLoader(file_path, source_column="student_id")
                 docs = loader.load()
@@ -72,7 +72,7 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
         Carga un archivo JSON y lo convierte a documentos LangChain.
         Maneja tanto listas de objetos como estructuras anidadas.
         """
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
 
         documents = []
@@ -83,10 +83,9 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
                 if isinstance(item, dict):
                     # Convertir dict a texto legible
                     text = self._dict_to_text(item)
-                    documents.append(Document(
-                        page_content=text,
-                        metadata={"source": file_path, "index": i}
-                    ))
+                    documents.append(
+                        Document(page_content=text, metadata={"source": file_path, "index": i})
+                    )
         # Si es un dict con una lista
         elif isinstance(data, dict):
             for key, value in data.items():
@@ -94,17 +93,16 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
                     for i, item in enumerate(value):
                         if isinstance(item, dict):
                             text = self._dict_to_text(item)
-                            documents.append(Document(
-                                page_content=text,
-                                metadata={"source": file_path, "category": key, "index": i}
-                            ))
+                            documents.append(
+                                Document(
+                                    page_content=text,
+                                    metadata={"source": file_path, "category": key, "index": i},
+                                )
+                            )
                 else:
                     # Dict simple
                     text = self._dict_to_text({key: value})
-                    documents.append(Document(
-                        page_content=text,
-                        metadata={"source": file_path}
-                    ))
+                    documents.append(Document(page_content=text, metadata={"source": file_path}))
 
         # Dividir en chunks
         return cast(list[Any], self.text_splitter.split_documents(documents))
@@ -128,9 +126,14 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
                 text = page.extract_text()
 
                 if text and text.strip():
-                    page_docs = self.text_splitter.split_documents([
-                        Document(page_content=text, metadata={"source": file_path, "page": page_num + 1})
-                    ])
+                    page_docs = self.text_splitter.split_documents(
+                        [
+                            Document(
+                                page_content=text,
+                                metadata={"source": file_path, "page": page_num + 1},
+                            )
+                        ]
+                    )
                     docs.extend(page_docs)
 
                 images = page.images
@@ -139,14 +142,19 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
                         try:
                             img_text = self._extract_image_text(img_info, page_num, img_idx)
                             if img_text:
-                                img_docs = self.text_splitter.split_documents([
-                                    Document(page_content=img_text, metadata={
-                                        "source": file_path,
-                                        "page": page_num + 1,
-                                        "type": "image",
-                                        "image_index": img_idx
-                                    })
-                                ])
+                                img_docs = self.text_splitter.split_documents(
+                                    [
+                                        Document(
+                                            page_content=img_text,
+                                            metadata={
+                                                "source": file_path,
+                                                "page": page_num + 1,
+                                                "type": "image",
+                                                "image_index": img_idx,
+                                            },
+                                        )
+                                    ]
+                                )
                                 docs.extend(img_docs)
                         except Exception:
                             continue
@@ -167,7 +175,10 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
             img_data = img_info.get_data()
             if img_data:
                 img = Image.open(io.BytesIO(img_data))
-                return f"[Image from page {page_num + 1}, image {img_idx + 1}]\n{pytesseract.image_to_string(img)}"
+                return (
+                    f"[Image from page {page_num + 1}, image {img_idx + 1}]\n"
+                    f"{pytesseract.image_to_string(img)}"
+                )
         except Exception:
             return f"[Image from page {page_num + 1}, image {img_idx + 1} - OCR not available]"
         return "[Image data unavailable]"
@@ -183,26 +194,28 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
         Carga un archivo Python extrayendo: docstrings, funciones, clases, comments.
         Preserva estructura del código para mejor retrieval.
         """
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         chunks = []
         current_module = []
 
-        lines = content.split('\n')
+        lines = content.split("\n")
         for line in lines:
-            if line.strip().startswith('#') and not line.strip().startswith('#!'):
+            if line.strip().startswith("#") and not line.strip().startswith("#!"):
                 current_module.append(line)
             elif line.strip().startswith('"""') or line.strip().startswith("'''"):
                 current_module.append(line)
-            elif 'def ' in line or 'class ' in line or 'import ' in line or 'from ' in line:
+            elif "def " in line or "class " in line or "import " in line or "from " in line:
                 if current_module:
-                    chunk_text = '\n'.join(current_module)
+                    chunk_text = "\n".join(current_module)
                     if chunk_text.strip():
-                        chunks.append(Document(
-                            page_content=chunk_text,
-                            metadata={"source": file_path, "type": "python_comment"}
-                        ))
+                        chunks.append(
+                            Document(
+                                page_content=chunk_text,
+                                metadata={"source": file_path, "type": "python_comment"},
+                            )
+                        )
                     current_module = []
                 current_module.append(line)
             else:
@@ -210,29 +223,34 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
                     current_module.append(line)
 
         if current_module:
-            chunk_text = '\n'.join(current_module)
+            chunk_text = "\n".join(current_module)
             if chunk_text.strip():
-                chunks.append(Document(
-                    page_content=chunk_text,
-                    metadata={"source": file_path, "type": "python_code"}
-                ))
+                chunks.append(
+                    Document(
+                        page_content=chunk_text,
+                        metadata={"source": file_path, "type": "python_code"},
+                    )
+                )
 
         if not chunks:
-            chunks = [Document(page_content=content, metadata={"source": file_path, "type": "python_raw"})]
+            chunks = [
+                Document(
+                    page_content=content, metadata={"source": file_path, "type": "python_raw"}
+                )
+            ]
 
         return cast(list[Any], self.text_splitter.split_documents(chunks))
 
     def _load_csv_as_text(self, file_path: str) -> list[Any]:
         """Load CSV as text documents, one row per document."""
         documents = []
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader):
                 text = self._dict_to_text(row)
-                documents.append(Document(
-                    page_content=text,
-                    metadata={"source": file_path, "row": i + 1}
-                ))
+                documents.append(
+                    Document(page_content=text, metadata={"source": file_path, "row": i + 1})
+                )
         return cast(list[Any], documents)
 
     def _dict_to_text(self, d: dict, indent: int = 0) -> str:
@@ -261,10 +279,25 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
 
         all_splits = []
         supported_extensions = [
-            '.pdf', '.txt', '.docx', '.md', '.json',
-            '.xlsx', '.xls', '.pptx',
-            '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp',
-            '.html', '.htm', '.csv', '.py'
+            ".pdf",
+            ".txt",
+            ".docx",
+            ".md",
+            ".json",
+            ".xlsx",
+            ".xls",
+            ".pptx",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".bmp",
+            ".tiff",
+            ".webp",
+            ".html",
+            ".htm",
+            ".csv",
+            ".py",
         ]
         for root, _, files in os.walk(dir_path):
             for filename in files:

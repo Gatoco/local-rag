@@ -17,13 +17,13 @@ class ColoredFormatter(logging.Formatter):
     """Formatter con colores para terminal."""
 
     COLORS = {
-        'DEBUG': '\033[36m',     # Cyan
-        'INFO': '\033[32m',      # Green
-        'WARNING': '\033[33m',   # Yellow
-        'ERROR': '\033[31m',     # Red
-        'CRITICAL': '\033[35m',  # Magenta
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
     }
-    RESET = '\033[0m'
+    RESET = "\033[0m"
 
     def format(self, record):
         log_color = self.COLORS.get(record.levelname, self.RESET)
@@ -35,7 +35,7 @@ def setup_logging(
     level: str = "INFO",
     log_file: str | None = None,
     json_format: bool = False,
-    log_dir: str = "./logs"
+    log_dir: str = "./logs",
 ) -> None:
     """
     Configura el sistema de logging para la aplicación.
@@ -63,8 +63,7 @@ def setup_logging(
         )
     else:
         console_formatter = ColoredFormatter(
-            '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
 
     console_handler.setFormatter(console_formatter)
@@ -77,11 +76,12 @@ def setup_logging(
 
         # Rotación por tamaño (10 MB)
         from logging.handlers import RotatingFileHandler
+
         file_handler = RotatingFileHandler(
             log_path / log_file,
             maxBytes=10 * 1024 * 1024,  # 10 MB
             backupCount=5,
-            encoding='utf-8'
+            encoding="utf-8",
         )
         file_handler.setLevel(logging.DEBUG)
 
@@ -93,8 +93,8 @@ def setup_logging(
             )
         else:
             file_formatter = logging.Formatter(
-                '%(asctime)s | %(levelname)s | %(name)s | %(funcName)s:%(lineno)d | %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
+                "%(asctime)s | %(levelname)s | %(name)s | %(funcName)s:%(lineno)d | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
             )
 
         file_handler.setFormatter(file_formatter)

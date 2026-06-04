@@ -15,9 +15,9 @@ class CLIAdapter:
 
     def _print_help(self) -> None:
         """Muestra ayuda de comandos."""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("COMANDOS DISPONIBLES".center(60))
-        print("="*60)
+        print("=" * 60)
         print("  ingest-file <ruta>   : Ingesta un archivo (.pdf, .txt, .docx)")
         print("  ingest-dir <ruta>    : Ingesta documentos de un directorio")
         print("  query <pregunta>     : Ejecuta una consulta RAG")
@@ -25,7 +25,7 @@ class CLIAdapter:
         print("  help                 : Muestra esta ayuda")
         print("  clear                : Limpia la pantalla")
         print("  exit                 : Cierra la aplicación")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
     def _show_progress_bar(self, current: int, total: int, width: int = 40) -> None:
         """Muestra barra de progreso."""
@@ -35,9 +35,9 @@ class CLIAdapter:
             percent = float(current / total)
 
         filled = int(width * percent)
-        bar = '█' * filled + '░' * (width - filled)
+        bar = "█" * filled + "░" * (width - filled)
 
-        sys.stdout.write(f'\r[{bar}] {percent*100:.1f}%')
+        sys.stdout.write(f"\r[{bar}] {percent * 100:.1f}%")
         sys.stdout.flush()
 
         if current >= total:
@@ -45,11 +45,11 @@ class CLIAdapter:
 
     def run(self) -> None:
         """Inicia el bucle de comandos de la CLI."""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("SISTEMA RAG LOCAL - CLI INTERACTIVA".center(60))
-        print("="*60)
+        print("=" * 60)
         print("\nEscribe 'help' para ver comandos disponibles")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         while True:
             try:
@@ -65,18 +65,19 @@ class CLIAdapter:
                     self._print_help()
 
                 elif command in {"exit", "quit", "salir"}:
-                    print("\n" + "="*60)
+                    print("\n" + "=" * 60)
                     print("¡Hasta luego! Cerrando sistema RAG local.".center(60))
-                    print("="*60 + "\n")
+                    print("=" * 60 + "\n")
                     break
 
                 elif command == "clear":
                     # Limpiar pantalla
                     import os
-                    os.system('cls' if os.name == 'nt' else 'clear')
-                    print("\n" + "="*60)
+
+                    os.system("cls" if os.name == "nt" else "clear")
+                    print("\n" + "=" * 60)
                     print("SISTEMA RAG LOCAL - CLI INTERACTIVA".center(60))
-                    print("="*60 + "\n")
+                    print("=" * 60 + "\n")
 
                 elif command == "count":
                     try:
@@ -119,14 +120,14 @@ class CLIAdapter:
                         continue
 
                     print(f"\n🔍 Consultando: {arg[:80]}{'...' if len(arg) > 80 else ''}")
-                    print("-"*60)
+                    print("-" * 60)
 
                     try:
                         result = self.rag_service.ask(arg)
 
                         # Mostrar respuesta con formato
                         print("\n💬 RESPUESTA:\n")
-                        answer = result.get('answer', '')
+                        answer = result.get("answer", "")
 
                         # Word wrap simple
                         words = answer.split()
@@ -141,20 +142,20 @@ class CLIAdapter:
                             print(f"  {line}")
 
                         # Mostrar fuentes
-                        sources = result.get('source_documents', [])
+                        sources = result.get("source_documents", [])
                         if sources:
                             print(f"\n📚 FUENTES ({len(sources)}):")
-                            print("-"*60)
+                            print("-" * 60)
                             seen = set()
                             for i, doc in enumerate(sources, 1):
-                                source = doc.metadata.get('source', 'desconocido')
+                                source = doc.metadata.get("source", "desconocido")
                                 if source not in seen:
-                                    page = doc.metadata.get('page', '')
-                                    page_info = f" (pág. {page})" if page else ''
+                                    page = doc.metadata.get("page", "")
+                                    page_info = f" (pág. {page})" if page else ""
                                     print(f"  {i}. {source}{page_info}")
                                     seen.add(source)
 
-                        print("\n" + "="*60 + "\n")
+                        print("\n" + "=" * 60 + "\n")
 
                     except Exception as exc:
                         print(f"\n❌ Error: {exc}\n")
@@ -164,8 +165,8 @@ class CLIAdapter:
                     print("Escribe 'help' para ver comandos disponibles.\n")
 
             except KeyboardInterrupt:
-                print("\n\n" + "="*60)
+                print("\n\n" + "=" * 60)
                 print("⚠️  Interrupción detectada. Escribe 'exit' para salir.".center(60))
-                print("="*60 + "\n")
+                print("=" * 60 + "\n")
             except Exception as exc:
                 print(f"\n❌ Error inesperado: {exc}\n")

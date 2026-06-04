@@ -23,27 +23,33 @@ from src.domain.ports.document_store_port import DocumentStorePort
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_RAG_PROMPT = """Eres un asistente de IA que responde preguntas basándose en el contexto proporcionado.
-
-Contexto: {context}
-
-Pregunta: {input}
-
-Responde basándote únicamente en el contexto proporcionado. Si la información no está en el contexto, indica que no tienes esa información."""
+DEFAULT_RAG_PROMPT = (
+    "Eres un asistente de IA que responde preguntas basándose en el contexto proporcionado.\n"
+    "\n"
+    "Contexto: {context}\n"
+    "\n"
+    "Pregunta: {input}\n"
+    "\n"
+    "Responde basándose únicamente en el contexto proporcionado. "
+    "Si la información no está en el contexto, indica que no tienes esa información."
+)
 
 
 class RAGServiceError(Exception):
     """Excepción base para errores del servicio RAG."""
+
     pass
 
 
 class RAGServiceIngestionError(RAGServiceError):
     """Error durante la ingesta de documentos."""
+
     pass
 
 
 class RAGServiceQueryError(RAGServiceError):
     """Error durante la consulta RAG."""
+
     pass
 
 
@@ -165,7 +171,9 @@ class RAGService(RAGPort):
             chunks = self.loader.load_directory(dir_path)
 
             if not chunks:
-                raise RAGServiceIngestionError(f"No se encontraron documentos válidos en: {dir_path}")
+                raise RAGServiceIngestionError(
+                    f"No se encontraron documentos válidos en: {dir_path}"
+                )
 
             self.doc_store.add_documents(chunks)
             logger.info(f"Directorio indexado: {dir_path} ({len(chunks)} fragmentos)")
@@ -190,7 +198,8 @@ class RAGService(RAGPort):
 
         Args:
             question: La pregunta del usuario
-            provider: Proveedor cloud (openai, anthropic, google, groq, minimax, deepseek). None = local.
+        # provider: Proveedor cloud
+        # (openai, anthropic, google, groq, minimax, deepseek). None = local.
             model: Modelo específico del provider (None = usa default)
             api_key: API key para provider cloud (None = usa .env)
 
@@ -225,10 +234,7 @@ class RAGService(RAGPort):
             context = result.get("context", [])
             source_documents = self._convert_context_to_documents(context)
 
-            answer = Answer(
-                text=answer_text.strip(),
-                source_documents=source_documents
-            )
+            answer = Answer(text=answer_text.strip(), source_documents=source_documents)
 
             logger.info(
                 f"Consulta completada: {len(answer.source_documents)} fuentes usadas",
@@ -237,7 +243,7 @@ class RAGService(RAGPort):
                     "answer_length": len(answer.text),
                     "sources_count": len(answer.source_documents),
                     "provider": provider or "local",
-                }
+                },
             )
 
             return {
@@ -279,12 +285,16 @@ class RAGService(RAGPort):
             cloud_chain = LangChainRAGAdapter(
                 llm_adapter=cloud_llm,
                 doc_store=self.doc_store,
-                prompt_template=self.chain.prompt_template if hasattr(self.chain, 'prompt_template') else DEFAULT_RAG_PROMPT,
+                prompt_template=self.chain.prompt_template
+                if hasattr(self.chain, "prompt_template")
+                else DEFAULT_RAG_PROMPT,
                 top_k=self.top_k,
             )
 
             result = cloud_chain.invoke(question)
-            logger.info(f"Consulta cloud completada con provider={provider}, model={cloud_llm.model}")
+            logger.info(
+                f"Consulta cloud completada con provider={provider}, model={cloud_llm.model}"
+            )
             return result
 
         except Exception as e:
@@ -306,27 +316,33 @@ class RAGService(RAGPort):
         for doc in context:
             try:
                 # Manejar diferentes formatos de documento
-                if hasattr(doc, 'page_content') and hasattr(doc, 'metadata'):
-                    documents.append(Document(
-                        page_content=str(doc.page_content),
-                        metadata=dict(doc.metadata) if doc.metadata else {},
-                        id=getattr(doc, 'id', None),
-                    ))
+                if hasattr(doc, "page_content") and hasattr(doc, "metadata"):
+                    documents.append(
+                        Document(
+                            page_content=str(doc.page_content),
+                            metadata=dict(doc.metadata) if doc.metadata else {},
+                            id=getattr(doc, "id", None),
+                        )
+                    )
                 elif isinstance(doc, dict):
-                    documents.append(Document(
-                        page_content=str(doc.get('page_content', '')),
-                        metadata=dict(doc.get('metadata', {})),
-                        id=doc.get('id'),
-                    ))
+                    documents.append(
+                        Document(
+                            page_content=str(doc.get("page_content", "")),
+                            metadata=dict(doc.get("metadata", {})),
+                            id=doc.get("id"),
+                        )
+                    )
                 else:
                     # Fallback: crear documento con el contenido raw
-                    documents.append(Document(
-                        page_content=str(doc),
-                        metadata={'source': 'unknown'},
-                    ))
+                    documents.append(
+                        Document(
+                            page_content=str(doc),
+                            metadata={"source": "unknown"},
+                        )
+                    )
             except Exception as e:
-                logger.warning(f"Error convirtiendo documento a Document: {e}")
-                continue
+                logger.error(f"Error convirtiendo documento a Document: {e}")
+                raise RAGServiceIngestionError(f"Error en conversión de documentos: {e}") from e
 
         return documents
 
@@ -339,13 +355,13 @@ class RAGService(RAGPort):
         """
         try:
             # ChromaDB tiene método _collection.count()
-            if hasattr(self.doc_store, 'vector_store'):
+            if hasattr(self.doc_store, "vector_store"):
                 count = self.doc_store.vector_store._collection.count()
                 return cast(int, count)
             return 0
         except Exception as e:
-            logger.warning(f"No se pudo obtener conteo de documentos: {e}")
-            return 0
+            logger.error(f"No se pudo obtener conteo de documentos: {e}")
+            raise RAGServiceError(f"Error al obtener conteo de documentos: {e}") from e
 
     def update_top_k(self, top_k: int) -> None:
         """
@@ -368,7 +384,7 @@ class RAGService(RAGPort):
         Returns:
             Dict con información de la cadena
         """
-        if hasattr(self.chain, 'get_chain_info'):
+        if hasattr(self.chain, "get_chain_info"):
             result = self.chain.get_chain_info()
             return cast(dict[str, Any], result)
 

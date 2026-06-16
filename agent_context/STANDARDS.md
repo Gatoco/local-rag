@@ -3,14 +3,13 @@
 ## Testing
 
 ### Requisitos
-- **Coverage mínimo**: 80% para código nuevo
+- **Coverage mínimo**: 80% para código nuevo (verificado en CI con `--cov-fail-under=80`)
 - **Tests unitarios**: Para cada función/método público
-- **Tests de integración**: Para flujos completos
+- **Tests de integración**: Para flujos completos (API, RAG)
 
 ### Ejecución de Tests
 ```bash
 cd /home/iwakura/Documentos/github-projects/local-rag
-source .venv/bin/activate
 
 # Unit tests
 pytest tests/unit/ -v --cov=src --cov-report=term-missing
@@ -22,24 +21,38 @@ pytest tests/integration/ -v
 pytest tests/benchmarks/ -v
 
 # Todos los tests
-pytest -v --cov=src
+pytest tests/ -v --cov=src
 ```
 
 ### Checklist antes de commit
 - [ ] Todos los unit tests pasan
 - [ ] Todos los integration tests pasan
 - [ ] Coverage no bajó del 80%
-- [ ] Ruff lint pasa
-- [ ] No hay warnings nuevos
+- [ ] Ruff lint pasa: `ruff check src/`
+- [ ] No hay warnings nuevos de mypy: `mypy src/`
 
 ## Linting y Formatting
 
 ```bash
-# Ruff (linter)
+# Ruff (linter + formatter)
 ruff check src/ tests/
-
-# Formato automático
 ruff format src/ tests/
+
+# La configuración está en pyproject.toml:
+# - line-length: 99
+# - target-version: py312
+# - select: E, F, W, I, N, UP, B, C4
+```
+
+## Type Checking
+
+```bash
+# mypy
+mypy src/ --ignore-missing-imports
+
+# Config en pyproject.toml
+# python_version: 3.12
+# warn_return_any: true
 ```
 
 ## Git
@@ -69,24 +82,25 @@ ruff format src/ tests/
 ### Agregar dependencia
 1. Añadir a `pyproject.toml` en `[dependencies]`
 2. Ejecutar `uv sync` o `pip install -e .`
-3. Verificar que tests sigan pasando
+3. Regenerar requirements.txt: `uv export --no-hashes --format requirements-txt > requirements.txt`
 4. Commit con mensaje: "deps: add <package>"
 
 ### Eliminar dependencia
 1. Remover de `pyproject.toml`
 2. Ejecutar `uv sync`
-3. Verificar que tests sigan pasando
+3. Regenerar requirements.txt
 4. Commit con mensaje: "deps: remove <package>"
 
 ## Code Review Checklist
 
-- [ ] Código legible ydocumentado
+- [ ] Código legible y documentado
 - [ ] No hay funciones/métodos demasiado largos (>100 líneas)
 - [ ] Nombres de variables claros
 - [ ] Tests para código nuevo
 - [ ] Sin hardcoded values (usar constantes/config)
 - [ ] Manejo de errores apropiado
 - [ ] Logging apropiado
+- [ ] Type hints en funciones públicas
 
 ## Logging
 
@@ -100,9 +114,26 @@ logger.debug("detalle")
 logger.error("error", exc_info=True)
 ```
 
+NO uses `print()` en código de producción — solo `logger`.
+
 ## Seguridad
 
-- No hardcodears credenciales
-- Usar variables de entorno
+- No hardcodear credenciales — usar variables de entorno
 - No hacer print de datos sensibles
 - Validar inputs de usuario
+- Secrets nunca en el código ni en el historial de git
+
+## Docker
+
+### Build
+```bash
+docker build -t local-rag .
+docker compose up -d
+```
+
+### Multi-stage
+El Dockerfile usa 2 stages:
+- `builder`: compila con build-essential, gcc
+- `runtime`: imagen final limpia sin herramientas de compilación
+
+El `.dockerignore` excluye: tests/, agent/, memory/, backups/, .venv/, __pycache__/

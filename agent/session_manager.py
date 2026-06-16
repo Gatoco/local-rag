@@ -7,7 +7,7 @@ Inicia sesión de trabajo y espera comandos del usuario.
 import os
 import sys
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_PATH = '/home/iwakura/Documentos/github-projects/local-rag'
@@ -26,15 +26,15 @@ def send_telegram(message):
     try:
         r = requests.post(url, json=data, timeout=10)
         return r.json().get('ok', False)
-    except:
+    except requests.RequestException:
         return False
 
 def log_action(action, details):
     """Registra acción del agente."""
     os.makedirs(LOG_DIR, exist_ok=True)
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     log_file = f'{LOG_DIR}/{today}.log'
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
     with open(log_file, 'a') as f:
         f.write(f'[{timestamp}] {action}: {details}\n')
 
@@ -59,7 +59,8 @@ def check_urgency():
     
     now = datetime.now(timezone.utc)
     for msg in state['messages']:
-        sent_at = datetime.fromisoformat(msg['sent_at'].replace('Z', '+00:00'))
+        sent_at_str = msg['sent_at'].replace('Z', '+00:00')
+        sent_at = datetime.fromisoformat(sent_at_str)
         minutes_diff = (now - sent_at).total_seconds() / 60
         
         # Timeout base: 30 minutos
@@ -80,11 +81,11 @@ def check_urgency():
 
 def start_session():
     """Inicia nueva sesión de trabajo."""
-    log_action('SESSION_START', f'Sesión iniciada a las {datetime.now().strftime("%H:%M")}')
+    log_action('SESSION_START', f'Sesión iniciada a las {datetime.now(timezone.utc).strftime("%H:%M")}')
     
     session_file = f'{AGENT_PATH}/current_session.json'
     session = {
-        'started_at': datetime.now().isoformat(),
+        'started_at': datetime.now(timezone.utc).isoformat(),
         'status': 'active',
         'tasks': [],
         'commits': []
@@ -104,7 +105,7 @@ def end_session():
     with open(session_file) as f:
         session = json.load(f)
     
-    session['ended_at'] = datetime.now().isoformat()
+    session['ended_at'] = datetime.now(timezone.utc).isoformat()
     session['status'] = 'completed'
     
     # Generar resumen

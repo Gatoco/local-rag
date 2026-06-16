@@ -16,17 +16,20 @@ from mcp.server import Server
 from mcp.types import Tool, TextContent
 from mcp.server.stdio import stdio_server
 
-PROJECT_PATH = '/home/iwakura/Documentos/github-projects/local-rag'
+PROJECT_PATH = str(Path(__file__).parent.parent)
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
 GITHUB_USER = os.getenv('GITHUB_USER', 'Gatoco')
 
 server = Server("navi-localrag")
 
-def run_cmd(cmd, timeout=60, cwd=PROJECT_PATH):
+def run_cmd(cmd, timeout=60, cwd=None):
     """Ejecuta comando en el proyecto local-rag con venv activado."""
-    full_cmd = f"cd {cwd} && source .venv/bin/activate && {cmd}"
+    if cwd is None:
+        cwd = PROJECT_PATH
+    venv_python = str(Path(cwd) / ".venv" / "bin" / "python")
+    full_cmd = f"cd {cwd} && {venv_python} -c '{cmd}'"
     result = subprocess.run(
-        ['fish', '-c', full_cmd],
+        ['bash', '-c', full_cmd],
         capture_output=True, text=True, timeout=timeout
     )
     return result.stdout.strip(), result.stderr.strip(), result.returncode

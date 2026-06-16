@@ -210,22 +210,42 @@ class TestHealthResponseSchema:
         response = HealthResponse(
             status="healthy",
             model="mistral-7b.gguf",
-            documents_count=100
+            documents_count=100,
+            chromadb_status="healthy",
+            redis_status="healthy",
         )
         
         assert response.status == "healthy"
         assert response.model == "mistral-7b.gguf"
         assert response.documents_count == 100
+        assert response.chromadb_status == "healthy"
+        assert response.redis_status == "healthy"
 
     def test_health_response_unhealthy(self):
         """Test: HealthResponse unhealthy"""
         response = HealthResponse(
             status="unhealthy",
             model="unknown",
-            documents_count=0
+            documents_count=0,
+            chromadb_status="unhealthy: connection refused",
+            redis_status="none",
         )
         
         assert response.status == "unhealthy"
+        assert "unhealthy" in response.chromadb_status
+
+    def test_health_response_degraded(self):
+        """Test: HealthResponse degraded cuando un servicio falla"""
+        response = HealthResponse(
+            status="degraded",
+            model="mistral-7b.gguf",
+            documents_count=50,
+            chromadb_status="healthy",
+            redis_status="unhealthy: connection refused",
+        )
+        
+        assert response.status == "degraded"
+        assert response.redis_status == "unhealthy: connection refused"
 
 
 class TestIngestResponseSchema:

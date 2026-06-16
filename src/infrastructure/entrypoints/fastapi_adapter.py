@@ -21,6 +21,8 @@ import time
 from collections.abc import AsyncGenerator
 from datetime import datetime
 
+import chromadb
+import redis as redis_lib
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -81,33 +83,57 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 "status": "healthy",
                 "version": "1.0.0",
                 "model": "mistral-7b-instruct-v0.3.Q4_K_M.gguf",
-                "documents_count": 4843
+                "documents_count": 4843,
+                "chromadb_status": "healthy",
+                "redis_status": "healthy"
             }
         """
         try:
-            # Obtener configuración del modelo desde RAGService
             model_info = (
                 rag_service.chain.llm.model_path
                 if hasattr(rag_service.chain, "llm")
                 and hasattr(rag_service.chain.llm, "model_path")
                 else "unknown"
             )
-            embedding_model = (
-                "sentence-transformers/all-MiniLM-L6-v2"  # Podría obtenerse del adapter
-            )
+            embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
 
-            # Obtener conteo de documentos
+            chromadb_status = "unknown"
+            doc_count = 0
             try:
+                chroma_client = chromadb.PersistentClient(
+                    path=rag_service.doc_store.persist_directory,
+                    settings=chromadb.config.Settings(anonymized_telemetry=False),
+                )
+                chroma_client.peek(limit=1)
+                chromadb_status = "healthy"
                 doc_count = rag_service.get_document_count()
-            except Exception:
-                doc_count = 0
+            except Exception as e:
+                chromadb_status = f"unhealthy: {e}"
+
+            redis_status = "none"
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+            if redis_url:
+                try:
+                    r = redis_lib.from_url(redis_url)
+                    r.ping()
+                    redis_status = "healthy"
+                except Exception as e:
+                    redis_status = f"unhealthy: {e}"
+
+            overall_status = "healthy"
+            if "unhealthy" in chromadb_status or "unhealthy" in redis_status:
+                overall_status = "degraded"
+            if "unhealthy:" in chromadb_status and "unhealthy:" in redis_status:
+                overall_status = "unhealthy"
 
             return HealthResponse(
-                status="healthy",
+                status=overall_status,
                 version="1.0.0",
                 model=os.path.basename(model_info) if model_info else "unknown",
                 embedding_model=embedding_model,
                 documents_count=doc_count,
+                chromadb_status=chromadb_status,
+                redis_status=redis_status,
             )
         except Exception as e:
             logger.error(f"Health check failed: {e}")
@@ -116,6 +142,8 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 version="1.0.0",
                 model="unknown",
                 documents_count=0,
+                chromadb_status="unknown",
+                redis_status="unknown",
             )
 
     @router.get("/metrics", response_model=MetricsResponse, tags=["Health"])

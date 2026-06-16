@@ -58,6 +58,9 @@ jobs:
       - name: Run ruff linter
         run: ruff check src/ --ignore=B008
 
+      - name: Run ruff format check
+        run: ruff format --check src/
+
   typecheck:
     runs-on: ubuntu-latest
 
@@ -74,7 +77,7 @@ jobs:
         run: pip install mypy
 
       - name: Run mypy
-        run: mypy src/ --ignore-missing-imports
+        run: mypy src/ --ignore-missing-imports --warn-unused-configs --disallow-untyped-defs
 
   build:
     runs-on: ubuntu-latest
@@ -89,6 +92,20 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t local-rag:${{ github.sha }} .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'local-rag:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
 
       - name: Run container health check
         run: |

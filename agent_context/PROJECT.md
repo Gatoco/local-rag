@@ -82,6 +82,8 @@ local-rag/
 
 ## Variables de Entorno (.env)
 
+Consultar `.env.example` para todas las variables disponibles. Las más importantes:
+
 ```
 # Seguridad
 JWT_SECRET_KEY=<obligatorio>
@@ -108,3 +110,5 @@ API_HOST=0.0.0.0
 API_PORT=8000
 RATE_LIMIT_PER_MINUTE=60
 ```
+
+**Nota**: Para configuración completa, ver `.env.example`.

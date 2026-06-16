@@ -1,16 +1,19 @@
 """
 Main REPL loop for local-rag.
 
-Refactored to be minimal and opencode-like:
-- Minimal prompt: "> "
-- Status bar header
-- Natural language command support
-- Local/Cloud mode switching
+Refactored with OpenCode-inspired interface:
+- Rich layout with header and messages
+- Streaming markdown output
+- Better keyboard shortcuts
+- Cleaner status display
 """
 
 import readline
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from rich.panel import Panel
 
 from .adapters.factory import get_default_local_model, get_llm_adapter
 from .commands.help import ClearCommand, ExitCommand, HelpCommand
@@ -18,39 +21,55 @@ from .commands.mode import ModeCommand
 from .commands.model import ModelCommand, ModelsCommand, ProviderCommand, ProvidersCommand
 from .commands.rag import IndexCommand, RagCommand, StatsCommand
 from .ui.console import Console
-from .ui.statusbar import StatusBar
+from .ui.layout import SimpleChatLayout
+from .ui.themes import ThemeManager
+
+
+@dataclass
+class ChatMessage:
+    """Represents a chat message with metadata."""
+
+    role: str  # "user" or "assistant"
+    content: str
+    sources: list[str] | None = None
 
 
 class REPL:
     """
-    Refactored REPL with minimal opencode-like interface.
+    OpenCode-inspired REPL for local-rag.
 
-    Usage:
-        repl = REPL()
-        repl.run()
+    Features:
+    - Rich terminal layout
+    - Streaming markdown responses
+    - Message history
+    - Mode switching (local/cloud)
+    - RAG toggle
+    - Themes support
     """
 
-    KNOWN_COMMANDS = [
-        "mode",
-        "provider",
-        "model",
-        "rag",
-        "index",
-        "help",
-        "quit",
-        "exit",
-        "clear",
-        "providers",
-        "models",
-        "stats",
-        "h",
-        "status",
-    ]
+    COMMANDS = {
+        "help": HelpCommand(),
+        "?": HelpCommand(),
+        "exit": ExitCommand(),
+        "quit": ExitCommand(),
+        "clear": ClearCommand(),
+        "providers": ProvidersCommand(),
+        "provider": ProviderCommand(),
+        "models": ModelsCommand(),
+        "model": ModelCommand(),
+        "rag": RagCommand(),
+        "index": IndexCommand(),
+        "stats": StatsCommand(),
+        "status": StatsCommand(),
+        "mode": ModeCommand(),
+        "m": ModeCommand(),
+    }
 
     def __init__(self) -> None:
         self.running = True
         self.console = Console()
-        self.status_bar = StatusBar(self.console)
+        self.theme_manager = ThemeManager()
+        self.theme = self.theme_manager.current
 
         self.mode = "cloud"
         self.provider = "minimax"
@@ -63,21 +82,16 @@ class REPL:
         self._chroma_collection = None
         self._llm_adapter = None
         self._local_llm_adapter = None
+        self._chat_history: list[ChatMessage] = []
 
         self._setup_readline()
         self._init_chroma()
-        self._update_status()
 
-    def _update_status(self) -> None:
-        """Update status bar with current state."""
-        self.status_bar.update(
-            mode=self.mode,
-            provider=self.provider,
-            model=self.model,
-            rag_enabled=self.rag_enabled,
-            docs_count=self.collection_count,
-            local_model=self.local_model,
-        )
+    def _setup_readline(self) -> None:
+        """Configure readline for better editing experience."""
+        readline.parse_and_bind("tab: complete")
+        readline.parse_and_bind("set editing-mode vi")
+        readline.parse_and_bind("set show-all-if-ambiguous on")
 
     def _init_chroma(self) -> None:
         """Initialize ChromaDB connection."""
@@ -92,21 +106,17 @@ class REPL:
             self._chroma_collection = client.get_collection(name="local_rag_docs")
             self.collection_count = self._chroma_collection.count()
         except Exception as e:
-            self.console.print_warning(f"ChromaDB not available: {e}")
+            self.console.print_dim(f"ChromaDB not available: {e}")
 
     def _get_adapter(self):
         """Get or create LLM adapter based on current mode."""
         if self.mode == "local":
             if self._local_llm_adapter is None:
-                from .adapters.factory import get_llm_adapter
-
                 self._local_llm_adapter = get_llm_adapter("local")
                 self.local_model = get_default_local_model() or "unknown"
             return self._local_llm_adapter
         else:
             if self._llm_adapter is None:
-                from .adapters.factory import get_llm_adapter
-
                 self._llm_adapter = get_llm_adapter("cloud", self.provider, self.model)
             return self._llm_adapter
 
@@ -120,7 +130,7 @@ class REPL:
             "rag_top_k": self.rag_top_k,
             "collection_count": self.collection_count,
             "local_model": self.local_model,
-            "commands": {},  # For compatibility with help command
+            "commands": {},
         }
 
     def _update_context(self, updates: dict[str, Any]) -> None:
@@ -152,87 +162,20 @@ class REPL:
         if "local_model" in updates:
             self.local_model = updates["local_model"]
 
-        self._update_status()
+        if "exit" in updates:
+            self.running = False
 
     def _load_local_model(self) -> None:
         """Load local llama.cpp model."""
         try:
-            self.console.print_info("Loading local model...")
-            self._local_llm_adapter = get_llm_adapter("local")
-            self.local_model = get_default_local_model() or "unknown"
-            self.console.print_success(f"Local model loaded: {self.local_model.split('/')[-1]}")
+            with self.console.status("[cyan]Loading local model...[/cyan]"):
+                self._local_llm_adapter = get_llm_adapter("local")
+                self.local_model = get_default_local_model() or "unknown"
+            self.console.print_success(f"Local model: {self.local_model.split('/')[-1]}")
         except Exception as e:
             self.console.print_error(f"Failed to load local model: {e}")
             self.mode = "cloud"
             self._llm_adapter = None
-
-    def _setup_readline(self) -> None:
-        """Enable readline features."""
-        readline.parse_and_bind("tab: complete")
-        readline.parse_and_bind("set editing-mode vi")
-
-    def _parse_input(self, line: str) -> tuple[bool, dict[str, Any]]:
-        """
-        Parse user input to determine if it's a command or query.
-
-        Returns:
-            (is_query, command_data)
-            - is_query: True if text should be sent to LLM
-            - command_data: dict with 'command' and 'args' if a command
-        """
-        line = line.strip()
-        if not line:
-            return False, {}
-
-        first_word = line.lower().split()[0]
-
-        if first_word.startswith("/"):
-            cmd_name = first_word[1:]
-            args = line.split()[1:]
-            return False, {"command": cmd_name, "args": args}
-
-        if first_word in self.KNOWN_COMMANDS and len(line.split()) <= 2:
-            parts = line.lower().split()
-            return False, {"command": parts[0], "args": parts[1:] if len(parts) > 1 else []}
-
-        return True, {}
-
-    def _handle_command(self, command: str, args: list[str]) -> tuple[bool, dict[str, Any], str]:
-        """
-        Execute a command and return result.
-
-        Returns:
-            (handled, data, message)
-        """
-        cmd_map = {
-            "help": HelpCommand(),
-            "?": HelpCommand(),
-            "exit": ExitCommand(),
-            "quit": ExitCommand(),
-            "clear": ClearCommand(),
-            "providers": ProvidersCommand(),
-            "provider": ProviderCommand(),
-            "models": ModelsCommand(),
-            "model": ModelCommand(),
-            "rag": RagCommand(),
-            "index": IndexCommand(),
-            "stats": StatsCommand(),
-            "status": StatsCommand(),
-            "mode": ModeCommand(),
-            "m": ModeCommand(),
-        }
-
-        if command not in cmd_map:
-            return False, {}, f"Unknown command: {command}"
-
-        cmd = cmd_map[command]
-        context = self._get_context()
-        result = cmd.execute(args, context)
-
-        if result.data:
-            self._update_context(result.data)
-
-        return True, result.data if result.data else {}, result.message
 
     def _search_chroma(self, query: str, k: int = 3) -> list[dict[str, Any]]:
         """Search ChromaDB for similar documents."""
@@ -299,10 +242,40 @@ class REPL:
         context = "\n\n".join(context_parts)
         return context, sources
 
+    def _handle_command(self, command: str, args: list[str]) -> tuple[bool, dict[str, Any], str]:
+        """Execute a command and return result."""
+        if command not in self.COMMANDS:
+            return False, {}, f"Unknown command: {command}"
+
+        cmd = self.COMMANDS[command]
+        context = self._get_context()
+        result = cmd.execute(args, context)
+
+        if result.data:
+            self._update_context(result.data)
+
+        return True, result.data if result.data else {}, result.message
+
+    def _parse_input(self, line: str) -> tuple[bool, dict[str, Any]]:
+        """Parse user input to determine if it's a command or query."""
+        line = line.strip()
+        if not line:
+            return False, {}
+
+        first_word = line.lower().split()[0]
+
+        if first_word.startswith("/"):
+            cmd_name = first_word[1:]
+            args = line.split()[1:]
+            return False, {"command": cmd_name, "args": args}
+
+        return True, {}
+
     def _stream_chat(self, prompt: str) -> None:
         """Send chat with streaming output."""
         try:
             adapter = self._get_adapter()
+            sources = []
 
             if self.rag_enabled and self._chroma_collection:
                 context, sources = self._build_rag_context(prompt)
@@ -315,13 +288,12 @@ Pregunta: {prompt}
 
 Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información del contexto. Si no hay suficiente información, di 'No tengo información suficiente en los documentos'."""
 
-                    self.console.print_dim(f"[Sources: {', '.join(sources[:3])}]")
+                    if sources:
+                        self.console.print_dim(f"Sources: {', '.join(sources[:3])}")
                     self.console.print()
 
-                    full_response = ""
                     for token in adapter.generate_stream(full_prompt, max_tokens=1024):
                         print(token, end="", flush=True)
-                        full_response += token
                     print()
                     return
                 else:
@@ -329,30 +301,42 @@ Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información 
                         "No documents found in RAG. Falling back to chat mode."
                     )
 
-            full_response = ""
             for token in adapter.generate_stream(prompt, max_tokens=1024):
                 print(token, end="", flush=True)
-                full_response += token
             print()
 
         except Exception as e:
             self.console.print_error(f"Error: {e}")
 
     def _print_welcome(self) -> None:
-        """Print welcome banner and status."""
+        """Print welcome message and header."""
         self.console.console.print()
-        self.status_bar.print()
-        self.console.console.print()
-        self.console.print_dim("Type /help for commands or ask a question")
+
+    def _print_header(self) -> None:
+        """Print the status header."""
+        layout = SimpleChatLayout(self.console.console, self.theme)
+        layout.render_header(
+            mode=self.mode,
+            provider=self.provider,
+            model=self.model,
+            rag_enabled=self.rag_enabled,
+            docs_count=self.collection_count,
+        )
+
+    def _print_prompt(self) -> None:
+        """Print the input prompt."""
         self.console.console.print()
 
     def run(self) -> None:
         """Main REPL loop."""
         self._print_welcome()
+        self._print_header()
+        self.console.console.print("[dim]Type /help for commands or ask a question[/dim]")
 
         while self.running:
             try:
-                line = input("> ").strip()
+                self._print_prompt()
+                line = input("❯ ").strip()
 
                 if not line:
                     continue
@@ -365,7 +349,10 @@ Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información 
                     )
 
                     if msg:
-                        self.console.console.print(msg)
+                        if cmd_data["command"] in ("help", "?"):
+                            self.console.console.print(Panel(msg, border_style="cyan"))
+                        else:
+                            self.console.console.print(msg)
 
                     if data.get("exit"):
                         break
@@ -373,12 +360,16 @@ Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información 
                     if not handled:
                         self.console.print_error(msg if msg else "Unknown command")
 
+                    self._print_header()
                     continue
+
+                self._print_header()
+                self.console.console.print(f"[cyan]❯ {line}[/cyan]")
 
                 self._stream_chat(line)
 
             except KeyboardInterrupt:
-                self.console.console.print("\n[dim](Use /exit to quit)[/dim]")
+                self.console.console.print("\n[dim](Ctrl+C to exit, /exit to quit)[/dim]")
                 continue
             except EOFError:
                 self.console.console.print("\n[cyan]Goodbye![/cyan]")
@@ -388,7 +379,7 @@ Responde de forma directa, sin bloques de pensamiento. Usa SOLO la información 
 
 
 def run_repl() -> None:
-    """Entry point."""
+    """Entry point for the REPL."""
     from dotenv import load_dotenv
 
     env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"

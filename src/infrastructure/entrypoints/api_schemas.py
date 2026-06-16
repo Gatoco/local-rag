@@ -304,6 +304,8 @@ class HealthResponse(BaseModel):
     model: str = Field(default="unknown", description="Modelo LLM cargado")
     embedding_model: str = Field(default="unknown", description="Modelo de embeddings")
     documents_count: int = Field(default=0, description="Documentos en el índice")
+    chromadb_status: str = Field(default="unknown", description="Estado de ChromaDB (healthy/unhealthy)")
+    redis_status: str = Field(default="unknown", description="Estado de Redis (healthy/unhealthy/none)")
     timestamp: datetime = Field(default_factory=datetime.now, description="Fecha y hora")
 
 

@@ -1,21 +1,18 @@
 # Local RAG
 
-Sistema RAG local con soporte multi-provider (local + cloud). Arquitectura Ports & Adapters para flexibilidad total.
+Sistema RAG local con soporte multi-provider (local + cloud). Arquitectura hexagonal (Ports & Adapters).
 
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-114%20passed-brightgreen.svg)](#tests)
-[![Typecheck](https://img.shields.io/badge/mypy-clean-success.svg)](#typecheck)
-[![Lint](https://img.shields.io/badge/ruff-clean-success.svg)](#lint)
+[![Tests](https://img.shields.io/badge/tests-170%2B%20passed-brightgreen.svg)](#tests)
 
 ## Features
 
-- **Local + Cloud**: Ejecuta localmente con llama.cpp/LM Studio o conecta a OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek
-- **Arquitectura hexagonal**: Cambia componentes sin romper lógica de negocio
-- **Seguridad**: JWT auth, argon2 password hashing, rate limiting
+- **Local + Cloud**: llama.cpp/LM Studio (local) o OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek (cloud)
+- **Arquitectura hexagonal**: Cambia componentes sin romper la lógica de negocio
+- **Seguridad**: JWT auth, argon2 hashing, rate limiting con Redis
 - **Persistência**: ChromaDB vector store en disco
-- **UI Electron**: Interfaz de escritorio para consultas
-- **CLI REPL**: Chat interactivo con modo local/cloud, comandos naturales y output Rich
+- **UI**: REPL interactivo, FastAPI REST, Streamlit
 
 ## Stack
 
@@ -24,281 +21,81 @@ Sistema RAG local con soporte multi-provider (local + cloud). Arquitectura Ports
 | LLM Local | llama.cpp (GGUF), LM Studio |
 | LLM Cloud | OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek |
 | Vector Store | ChromaDB |
-| Embeddings | HuggingFace BGE-Large (1024 dims) |
-| Orquestación | LangChain |
+| Embeddings | BAAI/bge-large-en-v1.5 (1024 dims) |
+| Framework | LangChain 0.3.x |
 | API | FastAPI |
-| UI | Electron |
 | Auth | JWT + argon2 |
-| Rate Limit | Redis-backed sliding window |
-
-## Modelo de Embeddings
-
-| Modelo | Dimensión | Uso |
-|--------|------------|-----|
-| BAAI/bge-large-en-v1.5 | 1024 | Producción (mejor calidad) |
-| sentence-transformers/all-MiniLM-L6-v2 | 384 | Testing/Backup |
-
-**Nota**: BGE-Large usa `batch_size=32` para encoding y procesamiento secuencial (no threading) para evitar contención de GIL en CPU.
-
-## Indexing de Documentos
-
-### Script Standalone (recomendado para datasets grandes)
-
-```bash
-python3 scripts/index_documents.py --reindex --timeout 1800 --workers 1
-```
-
-Opciones:
-- `--reindex`: Elimina colección existente antes de indexar
-- `--resume`: Continua desde donde quedó (usando manifest)
-- `--docs ./mi_directorio`: Directorio a indexar (default: ./docs_to_ingest)
-- `--workers N`: Workers para threading (default: 1, recomendado)
-- `--timeout N`: Timeout en segundos (default: 600)
-- `--batch-size N`: Docs por batch (default: 100)
-
-### REPL
-
-```bash
-python3 -m src.infrastructure.entrypoints.mylocalrag
-# luego: index --reindex
-```
-
-**Nota importante**: El indexing usa procesamiento secuencial con 1 worker. No usar multi-threading con BGE-Large en CPU - causa contención de GIL y rendimiento degradado.
 
 ## Modelos Soportados
 
-### Local (ejecución en tu máquina)
+### Local (gratis)
 
-| Provider | Modelos | Costo |
-|----------|---------|-------|
-| llama.cpp | Cualquier GGUF (Mistral, Llama, Phi, Qwen...) | Gratis |
-| LM Studio | Modelos cargados localmente | Gratis |
+| Provider | Modelos |
+|----------|---------|
+| llama.cpp | Cualquier GGUF (Mistral, Llama, Phi, Qwen...) |
+| LM Studio | Modelos cargados localmente |
 
 ### Cloud (requiere API key)
 
-| Provider | Modelos | Costo/1M tokens |
-|----------|---------|-----------------|
-| MiniMax | MiniMax-M2.7-8k, MiniMax-M2.7-32k | ~$0.20 |
-| Groq | llama-3.1-8b-instant, llama-3.3-70b-versatile | ~$0.10 |
-| OpenAI | gpt-4o-mini, gpt-4o, gpt-3.5-turbo | ~$0.50-15 |
-| Google | gemini-2.0-flash, gemini-1.5-flash | ~$0.10-0.50 |
-| DeepSeek | deepseek-chat, deepseek-coder | ~$0.10 |
-| Anthropic | claude-sonnet-4, claude-opus-4 | ~$3-15 |
-
-**Nota**: MiniMax y Groq ofrecen los mejores precios para uso casual. DeepSeek es la alternativa más económica para código.
-
-## Benchmarking Estático
-
-Comparativa de latency y costo entre providers (datos recopilados en condiciones controladas):
-
-| Provider/Model | Latencia p50 | Latencia p95 | Costo/1K tokens | VRAM |
-|----------------|--------------|--------------|-----------------|------|
-| **Local (llama.cpp)** | | | | |
-| Mistral-7B-Q4_K_M (CPU) | ~120ms | ~250ms | $0 | 4GB |
-| Mistral-7B-Q4_K_M (GPU) | ~40ms | ~80ms | $0 | 6GB |
-| **Cloud** | | | | |
-| MiniMax-M2.7-8k | ~80ms | ~150ms | $0.00002 | N/A |
-| Groq llama-3.1-8b | ~50ms | ~120ms | $0.00005 | N/A |
-| DeepSeek deepseek-chat | ~100ms | ~200ms | $0.0001 | N/A |
-| OpenAI gpt-4o-mini | ~150ms | ~300ms | $0.00015 | N/A |
-| Google gemini-2.0-flash | ~100ms | ~200ms | $0.0001 | N/A |
-| Anthropic claude-sonnet-4 | ~200ms | ~400ms | $0.003 | N/A |
-
-**Interpretación**:
-- Latencia p50: mediana (50% de requests más rápidos)
-- Latencia p95: percentil 95 (solo 5% más lento)
-- VRAM: solo para modelos locales con GPU
-- Cloud latency medida desde Europa, puede variar según región
-
-**Recomendaciones según caso de uso**:
-
-| Uso | Recomendación |
-|-----|---------------|
-| Desarrollo/Testing | Groq (más rápido, bajo costo) |
-| Producción económica | MiniMax o DeepSeek |
-| Máxima calidad | Anthropic Claude o OpenAI GPT-4o |
-| Offline estricto | llama.cpp con Mistral-7B-Q4_K_M |
-| GPU disponible | llama.cpp en GPU (latencia más baja) |
+| Provider | Costo/1M tokens |
+|----------|-----------------|
+| MiniMax | ~$0.20 |
+| Groq | ~$0.10 |
+| DeepSeek | ~$0.10 |
+| Google | ~$0.10-0.50 |
+| OpenAI | ~$0.50-15 |
+| Anthropic | ~$3-15 |
 
 ## Instalación
 
 ```bash
-# Clonar
-git clone https://github.com/Gatoco/local-rag.git
+git clone https://github.com/iwakura/local-rag.git
 cd local-rag
-
-# Crear venv
-python -m venv .venv
-source .venv/bin/activate
-
-# Instalar dependencias
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Requisito**: Python 3.12 (obligatorio)
+**Requisito**: Python 3.12
 
 ## Configuración
 
-Crea `.env` en la raíz:
-
-```env
-# === LLM Local (llama.cpp) ===
-LLAMA_CPP_MODEL_PATH=./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf
-N_GPU_LAYERS=0
-N_CTX=4096
-
-# === Embeddings ===
-EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-
-# === Vector Store ===
-CHROMA_DB_PATH=./chroma_db
-
-# === Cloud Providers (opcional) ===
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-...
-GOOGLE_API_KEY=...
-GROQ_API_KEY=...
-MINIMAX_API_KEY=sk-cp-...
-DEEPSEEK_API_KEY=sk-...
-
-# === Seguridad ===
-SECRET_KEY=tu-secret-key-aqui
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# === Rate Limiting ===
-REDIS_URL=redis://localhost:6379
-RATE_LIMIT_REQUESTS_PER_MINUTE=60
-
-# === Retrieval ===
-TOP_K_DOCUMENTS=4
-
-# === Chunking ===
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=150
+```bash
+cp .env.example .env
+# Editar .env con tus API keys y configuración
 ```
 
-**Seguridad**: Las API keys NUNCA se guardan en código. Solo en `.env` (que está en `.gitignore`).
+Variables principales:
+```env
+LLAMA_CPP_MODEL_PATH=./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf
+JWT_SECRET_KEY=tu-secret-key
+ADMIN_PASSWORD=tu-password
+MINIMAX_API_KEY=sk-cp-...
+```
 
 ## Uso
 
-### REPL (mylocalrag)
-
-REPL minimalista estilo opencode con soporte local/cloud.
+### REPL (recomendado)
 
 ```bash
-python3 -m src.infrastructure.entrypoints.mylocalrag
+python -m src.infrastructure.entrypoints.repl.repl
 ```
 
-**Prompt:**
 ```
 ╭─ local-rag ──────────────────────────────────────╮
 │ cloud | minimax | RAG | docs:2400                │
 ╰───────────────────────────────────────────────────╯
-
 > _
 ```
-
-**Comandos completos:**
-
-| Comando | Alias | Descripción |
-|---------|-------|-------------|
-| `mode` | `m` | Ver modo actual |
-| `mode local` | - | Cambiar a llama.cpp local |
-| `mode cloud` | - | Cambiar a cloud (MiniMax) |
-| `mode list` | - | Listar modos disponibles |
-| `provider <name>` | - | Cambiar provider cloud |
-| `providers` | - | Listar todos los providers |
-| `model <name>` | - | Cambiar modelo del provider actual |
-| `models` | - | Listar modelos del provider actual |
-| `rag` | - | Toggle RAG on/off |
-| `rag on` | - | Activar RAG |
-| `rag off` | - | Desactivar RAG |
-| `rag status` | - | Ver estado de RAG |
-| `rag topk <n>` | - | Cambiar top_k (1-20) |
-| `index` | - | Indexar `./docs_to_ingest` |
-| `index --reindex` | - | Re-indexar desde cero |
-| `index <dir>` | - | Indexar directorio específico |
-| `stats` | `info`, `collection` | Ver estadísticas del índice |
-| `help` | `?` | Mostrar ayuda |
-| `clear` | `cls` | Limpiar pantalla |
-| `exit` | `quit`, `q` | Salir |
-
-**Providers cloud:** minimax, groq, openai, google, deepseek, anthropic
-
-**Ejemplos:**
-```bash
-> mode local                  # Cambiar a llama.cpp local
-> mode cloud                 # Volver a cloud (MiniMax por defecto)
-> provider groq              # Cambiar a Groq
-> model llama-3.3-70b-versatile  # Cambiar modelo de Groq
-> rag on                     # Activar RAG
-> rag off                    # Desactivar RAG
-> rag topk 10                # Recuperar 10 documentos
-> index --reindex            # Re-indexar desde cero
-> stats                      # Ver documentos indexados
-
-> ¿Qué es Python?           # Consulta directa (sin comando)
-```
-
-**Estado del sistema (header):**
-```
-╭─ local-rag ──────────────────────────────────────╮
-│ cloud | minimax | RAG | docs:2400                │
-╰───────────────────────────────────────────────────╯
-```
-
-El header se actualiza automáticamente al cambiar provider, modo, o RAG.
-
-**Prompt:**
-```
-╭─ local-rag ──────────────────────────────────────╮
-│ cloud | minimax | RAG | docs:2400                │
-╰───────────────────────────────────────────────────╯
-
-> _
-```
-
-**Comandos (naturales, sin `/` o con `/`):**
 
 | Comando | Descripción |
 |---------|-------------|
-| `help`, `?` | Mostrar ayuda |
-| `mode [local\|cloud]` | Cambiar entre modo local (llama.cpp) y cloud |
+| `mode local/cloud` | Cambiar entre local y cloud |
 | `provider <name>` | Cambiar provider cloud |
 | `model <name>` | Cambiar modelo |
-| `providers` | Listar providers disponibles |
-| `models` | Listar modelos del provider actual |
-| `rag [on\|off]` | Activar/desactivar RAG |
-| `index [--reindex]` | Indexar documentos |
-| `stats` | Ver estadísticas del índice |
-| `clear` | Limpiar pantalla |
-| `exit`, `quit` | Salir |
-
-**Ejemplos:**
-```bash
-> mode local                  # Cambiar a llama.cpp local
-> mode cloud                 # Volver a cloud (MiniMax por defecto)
-> provider groq              # Cambiar a Groq
-> rag off                     # Desactivar RAG
-> what is python              # Consulta directa (sin comando)
-```
-
-### CLI (legacy)
-
-```bash
-python main.py
-```
-
-Comandos legacy:
-```
-ingest-file <ruta>   Ingesta archivo (.pdf, .txt, .docx, .xlsx, .pptx)
-ingest-dir <ruta>    Ingesta directorio recursivamente
-query <pregunta>     Ejecuta consulta RAG
-count                Muestra número de documentos indexados
-clear                Limpia pantalla
-help                 Muestra ayuda
-exit                 Sale
-```
+| `rag on/off` | Toggle RAG |
+| `rag topk <n>` | Cambiar top_k (1-20) |
+| `index --reindex` | Indexar documentos |
+| `stats` | Ver estadísticas |
 
 ### API REST
 
@@ -307,144 +104,58 @@ python run_api.py
 # http://localhost:8000/docs
 ```
 
-Endpoints principales:
-
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | GET | `/api/v1/health` | Health check |
 | POST | `/api/v1/query` | Consulta RAG |
-| POST | `/api/v1/query/stream` | Streaming de tokens |
-| POST | `/api/v1/ingest/file` | Ingesta archivo |
-| POST | `/api/v1/ingest/directory` | Ingesta directorio |
-| GET | `/api/v1/llm/providers` | Lista providers disponibles |
-| GET | `/api/v1/llm/models/{provider}` | Modelos por provider |
+| POST | `/api/v1/query/stream` | Streaming |
+| POST | `/api/v1/ingest/file` | Ingestar archivo |
+| POST | `/api/v1/ingest/directory` | Ingestar directorio |
+| GET | `/api/v1/llm/providers` | Providers disponibles |
 
-**Consulta con provider cloud**:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "¿Qué es el cálculo diferencial?",
-    "provider": "openai",
-    "model": "gpt-4o-mini"
-  }'
-```
-
-**Consulta RAG con MiniMax (cloud)**:
+### Indexing de Documentos
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "¿Qué información hay sobre estudiantes?",
-    "provider": "minimax",
-    "top_k": 4
-  }'
+# Script standalone (para datasets grandes)
+python scripts/index_documents.py --reindex --timeout 1800
+
+# Opciones: --reindex, --resume, --docs ./dir, --batch-size N
 ```
-
-### Electron UI
-
-```bash
-cd ui/electron
-npm install
-npm start
-```
-
-Permite seleccionar provider y modelo desde interfaz gráfica.
-
-## Seguridad
-
-| Feature | Implementación |
-|---------|----------------|
-| Passwords | argon2 (no md5/sha) |
-| Auth | JWT con expiry |
-| Rate Limit | Redis sliding window (por IP + user) |
-| API Keys | Solo en `.env`, nunca en código |
-| CORS | Configurable, default permite localhost |
-
-**Whitelist localhost**: 127.0.0.1 sin rate limit.
 
 ## Tests
 
 ```bash
-# Unit tests
-pytest tests/unit -v
-
-# Integration tests (requiere modelo GGUF)
-pytest tests/integration -v
-
-# Todos
 pytest tests/ -v
 ```
 
-**Resultado actual**: 174 passed, 2 failed (pre-existentes), 5 skipped
-
-## Typecheck & Lint
-
-```bash
-# mypy
-mypy src/ --ignore-missing-imports
-
-# ruff
-ruff check src/ --ignore=B008
-```
-
-## Estructura del Proyecto
+## Estructura
 
 ```
 src/
-├── application/
-│   ├── ports/           # Contratos (interfaces)
-│   │   ├── rag_port.py
-│   │   └── rag_chain_port.py
+├── domain/           # Models (Document, Query, Answer)
+│   └── ports/        # Interfaces (LLMPort, EmbeddingPort, etc.)
+├── application/      # RAGService
 │   └── services/
-│       └── rag_service.py
-├── domain/
-│   ├── models/          # Entidades Pydantic
-│   └── ports/           # Puertos domain
-├── infrastructure/
-│   ├── adapters/        # Implementaciones
-│   │   ├── chromadb_adapter.py
-│   │   ├── cloud_llm_adapter.py
-│   │   ├── hf_embedding_adapter.py
-│   │   ├── llama_cpp_llm_adapter.py
-│   │   └── lmstudio_llm_adapter.py
-│   ├── entrypoints/     # API, CLI, REPL
-│   │   ├── repl/       # REPL estilo opencode
-│   │   │   ├── ui/         # Console, StatusBar
-│   │   │   ├── adapters/    # Factory para local/cloud
-│   │   │   └── commands/   # Comandos (help, mode, rag, etc.)
-│   │   ├── fastapi_adapter.py
-│   │   ├── api_schemas.py
-│   │   └── ...
-│   ├── security/        # Auth, rate limit
-│   └── cache/           # Semantic cache
-└── ui/electron/         # App de escritorio
+└── infrastructure/
+    ├── adapters/     # ChromaDB, LLM adapters, etc.
+    ├── entrypoints/   # REPL, FastAPI, CLI
+    ├── security/      # JWT, rate limiting
+    └── cache/        # Semantic cache
 ```
 
 ## Recomendaciones
 
-| Escenario | Configuración |
-|-----------|---------------|
-| Primer uso | Empieza con llama.cpp local (gratis) |
-| Desarrollo rápido | Groq API (límite generoso, rápido) |
-| Producción | MiniMax o DeepSeek (mejor costo) |
-| Máxima calidad | Anthropic Claude ($$$) |
-| Sin internet | Solo llama.cpp local |
+| Uso | Recomendación |
+|-----|---------------|
+| Desarrollo/Testing | Groq (rápido, bajo costo) |
+| Producción económica | MiniMax o DeepSeek |
+| Máxima calidad | Anthropic Claude |
+| Offline | llama.cpp local |
 
 ## Troubleshooting
 
-**Modelo GGUF no encontrado**:
-```bash
-mkdir -p ./models
-wget -O ./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf \
-  https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/mistral-7b-instruct-v0.3.Q4_K_M.gguf
-```
+**Modelo GGUF no encontrado**: Descargar de HuggingFace y colocar en `./models/`
 
-**Error de dependencias**:
-```bash
-pip install -r requirements.txt --upgrade
-```
+**Primera ejecución lenta**: Normal. `llama-cpp-python` compila desde fuente (~2-5 min).
 
-**Primera ejecución lenta**: Normal. `llama-cpp-python` compila desde fuente la primera vez (~2-5 min). Luego es instantáneo.
+**Dependencias**: `pip install -r requirements.txt --upgrade`

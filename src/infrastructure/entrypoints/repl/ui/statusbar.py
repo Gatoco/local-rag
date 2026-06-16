@@ -5,9 +5,7 @@ Shows current mode, provider, model, RAG status, and document count.
 Styled without emojis, using box-drawing characters.
 """
 
-from rich.layout import Layout
 from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 
 from ..ui.themes import Theme, ThemeManager

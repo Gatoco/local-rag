@@ -4,7 +4,7 @@ Session management for REPL - handles conversation state and persistence.
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +20,7 @@ class Session:
         model: str = "MiniMax-M2.7",
     ):
         self.id = session_id or str(uuid.uuid4())[:8]
-        self.created_at = created_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        self.created_at = created_at or datetime.now(UTC).isoformat().replace("+00:00", "Z")
         self.messages: list[dict[str, Any]] = messages or []
         self.rag_enabled = rag_enabled
         self.provider = provider
@@ -31,7 +31,7 @@ class Session:
             {
                 "role": role,
                 "content": content,
-                "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             }
         )
 

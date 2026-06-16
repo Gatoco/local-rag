@@ -113,4 +113,5 @@ scripts/
 
 # OS
 Thumbs.db
-.DS_Store
+.DS_Storebackups/
+memory/

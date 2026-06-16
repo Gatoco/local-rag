@@ -23,7 +23,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "langchain>=0.3.28,<1.0.0",
+    "langchain>=0.3.28,<2.0.0",
     "langchain-ollama>=0.3.10",
     "langchain-huggingface>=0.0.43",
     "chromadb>=1.5.5",

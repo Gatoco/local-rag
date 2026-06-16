@@ -19,20 +19,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          enable-cache: true
 
-      - name: Install dependencies
-        run: |
-          pip install -e ".[dev]"
-          pip install -r requirements.txt
-          pip install pytest-benchmark
+      - name: Set up Python
+        run: uv python install 3.12
 
       - name: Run tests with coverage
-        run: pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+        run: |
+          uv sync --dev --frozen
+          uv run pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -47,19 +45,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: '3.12'
+          enable-cache: true
 
-      - name: Install ruff
-        run: pip install ruff
+      - name: Set up Python
+        run: uv python install 3.12
 
       - name: Run ruff linter
-        run: ruff check src/ --ignore=B008
+        run: |
+          uv sync --frozen
+          uv run ruff check src/
 
       - name: Run ruff format check
-        run: ruff format --check src/
+        run: uv run ruff format --check src/
 
   typecheck:
     runs-on: ubuntu-latest
@@ -68,20 +68,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: '3.12'
+          enable-cache: true
 
-      - name: Install mypy
-        run: pip install mypy
+      - name: Set up Python
+        run: uv python install 3.12
 
       - name: Run mypy
-        run: mypy src/ --ignore-missing-imports --warn-unused-configs --disallow-untyped-defs
+        run: |
+          uv sync --frozen
+          uv run mypy src/ --ignore-missing-imports --warn-unused-configs
 
   build:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, lint, typecheck]
 
     steps:
       - name: Checkout code
@@ -116,7 +118,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [test, lint, typecheck]
+    needs: [test, lint, typecheck, build]
     if: github.ref == 'refs/heads/main'
 
     steps:

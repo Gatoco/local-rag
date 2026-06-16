@@ -1,52 +1,64 @@
 # Local RAG
 
-Sistema RAG local con soporte multi-provider (local + cloud). Arquitectura hexagonal (Ports & Adapters).
+> Sistema RAG local con soporte multi-provider (local + cloud). Arquitectura hexagonal (Ports & Adapters).
+
+---
 
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-170%2B%20passed-brightgreen.svg)](#tests)
+[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+---
 
 ## Features
 
 - **Local + Cloud**: llama.cpp/LM Studio (local) o OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek (cloud)
-- **Arquitectura hexagonal**: Cambia componentes sin romper la lógica de negocio
+- **Arquitectura hexagonal**: Cambia componentes sin romper la logica de negocio
 - **Seguridad**: JWT auth, argon2 hashing, rate limiting con Redis
-- **Persistência**: ChromaDB vector store en disco
+- **Persistencia**: ChromaDB vector store en disco
 - **UI**: REPL interactivo, FastAPI REST, Streamlit
 
-## Stack
+---
 
-| Componente | Tecnología |
-|------------|------------|
-| LLM Local | llama.cpp (GGUF), LM Studio |
-| LLM Cloud | OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek |
-| Vector Store | ChromaDB |
-| Embeddings | BAAI/bge-large-en-v1.5 (1024 dims) |
-| Framework | LangChain 0.3.x |
-| API | FastAPI |
-| Auth | JWT + argon2 |
+## Stack Tecnologico
+
+| Componente   | Tecnologia                     |
+|--------------|--------------------------------|
+| LLM Local    | llama.cpp (GGUF), LM Studio    |
+| LLM Cloud    | OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek |
+| Vector Store | ChromaDB                       |
+| Embeddings   | BAAI/bge-large-en-v1.5 (1024 dims) |
+| Framework    | LangChain 0.3.x                |
+| API          | FastAPI                        |
+| Auth         | JWT + argon2                   |
+
+---
 
 ## Modelos Soportados
 
 ### Local (gratis)
 
-| Provider | Modelos |
-|----------|---------|
+| Provider  | Modelos                                      |
+|-----------|----------------------------------------------|
 | llama.cpp | Cualquier GGUF (Mistral, Llama, Phi, Qwen...) |
-| LM Studio | Modelos cargados localmente |
+| LM Studio | Modelos cargados localmente                  |
 
 ### Cloud (requiere API key)
 
-| Provider | Costo/1M tokens |
-|----------|-----------------|
-| MiniMax | ~$0.20 |
-| Groq | ~$0.10 |
-| DeepSeek | ~$0.10 |
-| Google | ~$0.10-0.50 |
-| OpenAI | ~$0.50-15 |
-| Anthropic | ~$3-15 |
+| Provider  | Costo/1M tokens |
+|-----------|-----------------|
+| MiniMax   | ~$0.20          |
+| Groq      | ~$0.10         |
+| DeepSeek  | ~$0.10         |
+| Google    | ~$0.10-0.50    |
+| OpenAI    | ~$0.50-15      |
+| Anthropic | ~$3-15         |
 
-## Instalación
+---
+
+## Instalacion
 
 ```bash
 git clone https://github.com/iwakura/local-rag.git
@@ -55,22 +67,27 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Requisito**: Python 3.12
+> **Requisito**: Python 3.12
 
-## Configuración
+---
+
+## Configuracion
 
 ```bash
 cp .env.example .env
-# Editar .env con tus API keys y configuración
+# Editar .env con tus API keys y configuracion
 ```
 
-Variables principales:
+**Variables principales:**
+
 ```env
 LLAMA_CPP_MODEL_PATH=./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf
 JWT_SECRET_KEY=tu-secret-key
 ADMIN_PASSWORD=tu-password
 MINIMAX_API_KEY=sk-cp-...
 ```
+
+---
 
 ## Uso
 
@@ -87,15 +104,15 @@ python -m src.infrastructure.entrypoints.repl.repl
 > _
 ```
 
-| Comando | Descripción |
-|---------|-------------|
-| `mode local/cloud` | Cambiar entre local y cloud |
-| `provider <name>` | Cambiar provider cloud |
-| `model <name>` | Cambiar modelo |
-| `rag on/off` | Toggle RAG |
-| `rag topk <n>` | Cambiar top_k (1-20) |
-| `index --reindex` | Indexar documentos |
-| `stats` | Ver estadísticas |
+| Comando             | Descripcion              |
+|---------------------|--------------------------|
+| `mode local/cloud`  | Cambiar entre local y cloud |
+| `provider <name>`   | Cambiar provider cloud   |
+| `model <name>`      | Cambiar modelo           |
+| `rag on/off`        | Toggle RAG               |
+| `rag topk <n>`      | Cambiar top_k (1-20)     |
+| `index --reindex`   | Indexar documentos       |
+| `stats`             | Ver estadisticas         |
 
 ### API REST
 
@@ -104,14 +121,14 @@ python run_api.py
 # http://localhost:8000/docs
 ```
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/v1/health` | Health check |
-| POST | `/api/v1/query` | Consulta RAG |
-| POST | `/api/v1/query/stream` | Streaming |
-| POST | `/api/v1/ingest/file` | Ingestar archivo |
-| POST | `/api/v1/ingest/directory` | Ingestar directorio |
-| GET | `/api/v1/llm/providers` | Providers disponibles |
+| Metodo | Endpoint                    | Descripcion           |
+|--------|-----------------------------|-----------------------|
+| GET    | `/api/v1/health`            | Health check          |
+| POST   | `/api/v1/query`             | Consulta RAG          |
+| POST   | `/api/v1/query/stream`      | Streaming             |
+| POST   | `/api/v1/ingest/file`       | Ingestar archivo      |
+| POST   | `/api/v1/ingest/directory`  | Ingestar directorio   |
+| GET    | `/api/v1/llm/providers`     | Providers disponibles |
 
 ### Indexing de Documentos
 
@@ -122,40 +139,48 @@ python scripts/index_documents.py --reindex --timeout 1800
 # Opciones: --reindex, --resume, --docs ./dir, --batch-size N
 ```
 
+---
+
 ## Tests
 
 ```bash
 pytest tests/ -v
 ```
 
-## Estructura
+---
+
+## Estructura del Proyecto
 
 ```
 src/
-├── domain/           # Models (Document, Query, Answer)
-│   └── ports/        # Interfaces (LLMPort, EmbeddingPort, etc.)
-├── application/      # RAGService
-│   └── services/
-└── infrastructure/
-    ├── adapters/     # ChromaDB, LLM adapters, etc.
-    ├── entrypoints/   # REPL, FastAPI, CLI
-    ├── security/      # JWT, rate limiting
-    └── cache/        # Semantic cache
+|-- domain/                # Models (Document, Query, Answer)
+|   |-- ports/             # Interfaces (LLMPort, EmbeddingPort, etc.)
+|-- application/           # RAGService
+|   |-- services/
+|-- infrastructure/
+    |-- adapters/          # ChromaDB, LLM adapters, etc.
+    |-- entrypoints/       # REPL, FastAPI, CLI
+    |-- security/          # JWT, rate limiting
+    |-- cache/             # Semantic cache
 ```
 
-## Recomendaciones
+---
 
-| Uso | Recomendación |
-|-----|---------------|
-| Desarrollo/Testing | Groq (rápido, bajo costo) |
-| Producción económica | MiniMax o DeepSeek |
-| Máxima calidad | Anthropic Claude |
-| Offline | llama.cpp local |
+## Recomendaciones de Uso
+
+| Uso                   | Recomendacion           |
+|-----------------------|-------------------------|
+| Desarrollo/Testing    | Groq (rapido, bajo costo) |
+| Produccion economica  | MiniMax o DeepSeek      |
+| Maxima calidad        | Anthropic Claude        |
+| Offline               | llama.cpp local         |
+
+---
 
 ## Troubleshooting
 
-**Modelo GGUF no encontrado**: Descargar de HuggingFace y colocar en `./models/`
-
-**Primera ejecución lenta**: Normal. `llama-cpp-python` compila desde fuente (~2-5 min).
-
-**Dependencias**: `pip install -r requirements.txt --upgrade`
+| Problema                       | Solucion                                    |
+|--------------------------------|---------------------------------------------|
+| Modelo GGUF no encontrado      | Descargar de HuggingFace y colocar en `./models/` |
+| Primera ejecucion lenta         | Normal. `llama-cpp-python` compila desde fuente (~2-5 min) |
+| Problemas con dependencias     | `pip install -r requirements.txt --upgrade` |

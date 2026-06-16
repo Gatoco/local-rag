@@ -9,6 +9,7 @@ import sys
 import os
 import json
 import subprocess
+import shlex
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -16,28 +17,83 @@ from mcp.server import Server
 from mcp.types import Tool, TextContent
 from mcp.server.stdio import stdio_server
 
+# Import code intelligence tools from agent.tools (avoid duplication)
+from agent.tools.rag_query import get_rag_query_tool, handle_rag_query
+from agent.tools.read_file import get_read_file_tool, handle_read_file
+from agent.tools.search_code import get_search_code_tool, handle_search_code
+
 PROJECT_PATH = str(Path(__file__).parent.parent)
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
 GITHUB_USER = os.getenv('GITHUB_USER', 'Gatoco')
 
 server = Server("navi-localrag")
 
+ALLOWED_COMMANDS = frozenset({
+    'git', 'pytest', 'ruff', 'grep', 'find', 'ls', 'head', 'tail', 'wc'
+})
+
+def _validate_command(cmd: str) -> bool:
+    """Validate command is safe (allowlist approach)."""
+    first_word = cmd.strip().split()[0] if cmd.strip() else ''
+    return first_word in ALLOWED_COMMANDS
+
 def run_cmd(cmd, timeout=60, cwd=None):
-    """Ejecuta comando en el proyecto local-rag con venv activado."""
+    """Execute command in local-rag project with venv activated.
+
+    Security: Only allows predefined commands via allowlist.
+    """
     if cwd is None:
         cwd = PROJECT_PATH
+
+    # Validate command is in allowlist
+    if not _validate_command(cmd):
+        return "", f"Command not allowed: {cmd[:50]}", 1
+
+    # Validate cwd is within project
+    try:
+        resolved_cwd = Path(cwd).resolve()
+        if not str(resolved_cwd).startswith(str(Path(PROJECT_PATH).resolve())):
+            return "", "CWD outside project not allowed", 1
+    except Exception:
+        return "", "Invalid CWD", 1
+
     venv_python = str(Path(cwd) / ".venv" / "bin" / "python")
-    full_cmd = f"cd {cwd} && {venv_python} -c '{cmd}'"
+
+    # Use shlex for safer command construction
+    cmd_quoted = shlex.quote(cmd)
+    venv_python_quoted = shlex.quote(venv_python)
+    cwd_quoted = shlex.quote(cwd)
+
+    full_cmd = f'cd {cwd_quoted} && {venv_python_quoted} -c {cmd_quoted}'
+
     result = subprocess.run(
         ['bash', '-c', full_cmd],
-        capture_output=True, text=True, timeout=timeout
+        capture_output=True, text=True, timeout=timeout,
+        cwd=str(resolved_cwd),
+        env={**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'}
     )
     return result.stdout.strip(), result.stderr.strip(), result.returncode
 
 def run_gh_cmd(cmd, timeout=30):
-    """Ejecuta comando gh (GitHub CLI) con auth."""
+    """Execute gh (GitHub CLI) command with auth.
+
+    Security: Only allows predefined gh subcommands.
+    """
+    # Allowlist of safe gh subcommands
+    safe_gh_prefixes = ('gh run ', 'gh workflow ', 'gh repo ', 'gh api ')
+    if not any(cmd.strip().startswith(prefix) for prefix in safe_gh_prefixes):
+        return "", f"GH command not allowed: {cmd[:50]}", 1
+
+    gh_token_quoted = shlex.quote(GITHUB_TOKEN) if GITHUB_TOKEN else ''
+    cmd_quoted = shlex.quote(cmd)
+
+    if gh_token_quoted:
+        full_cmd = f'export GH_TOKEN={gh_token_quoted} && {cmd_quoted}'
+    else:
+        full_cmd = cmd_quoted
+
     result = subprocess.run(
-        ['bash', '-c', f'export GH_TOKEN={GITHUB_TOKEN} && {cmd}'],
+        ['bash', '-c', full_cmd],
         capture_output=True, text=True, timeout=timeout
     )
     return result.stdout.strip(), result.stderr.strip(), result.returncode
@@ -183,6 +239,14 @@ async def list_tools():
         ),
     ]
 
+    # Add code intelligence tools from agent.tools
+    all_tools = [
+        *get_read_file_tool(),
+        *get_rag_query_tool(),
+        *get_search_code_tool(),
+    ]
+    return all_tools
+
 @server.call_tool()
 async def call_tool(name: str, arguments: dict):
     try:
@@ -216,6 +280,14 @@ async def call_tool(name: str, arguments: dict):
             return await agent_log(arguments.get("action", ""), arguments.get("details", ""))
         elif name == "localrag_session_report":
             return await session_report()
+
+        # RAG Code Intelligence
+        elif name == "read_file":
+            return await handle_read_file(arguments)
+        elif name == "search_code":
+            return await handle_search_code(arguments)
+        elif name == "rag_query":
+            return await handle_rag_query(arguments)
         else:
             return [TextContent(type="text", text=f"Tool {name} not found")]
     except Exception as e:

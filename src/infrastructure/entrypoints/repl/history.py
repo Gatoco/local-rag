@@ -2,7 +2,7 @@
 In-memory conversation history for current REPL session.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -10,13 +10,13 @@ class HistoryEntry:
     def __init__(self, role: str, content: str):
         self.role = role
         self.content = content
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "role": self.role,
             "content": self.content,
-            "timestamp": self.timestamp.isoformat() + "Z",
+            "timestamp": self.timestamp.isoformat().replace("+00:00", "Z"),
         }
 
 

@@ -1,9 +1,13 @@
-import pytest
 import os
 
 os.environ.setdefault("MINIMAX_API_KEY", "sk-test-minimax-key")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-openai-key")
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-test-anthropic-key")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-ci-only")
+os.environ.setdefault("ADMIN_PASSWORD", "test-admin-password")
+os.environ.setdefault("USER_PASSWORD", "test-user-password")
+
+import pytest  # noqa: E402
 
 
 @pytest.fixture

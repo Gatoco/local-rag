@@ -15,11 +15,6 @@ Commands:
     /rag [on|off]  Toggle RAG mode
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-
 from src.infrastructure.entrypoints.repl.repl import run_repl
 
 if __name__ == "__main__":

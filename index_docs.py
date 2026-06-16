@@ -8,9 +8,6 @@ Example: python index_docs.py ./docs_to_ingest
 
 import sys
 import os
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent))
 
 from src.infrastructure.adapters.hf_embedding_adapter import HFEmbeddingAdapter
 from src.infrastructure.adapters.chromadb_adapter import ChromaDBAdapter

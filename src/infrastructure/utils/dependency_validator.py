@@ -189,7 +189,7 @@ def validate_gguf_model(model_path: str) -> dict[str, Any]:
     try:
         with open(path, "rb") as f:
             magic = f.read(4)
-            result["valid_header"] = magic == b"GGUF"[::-1]  # Little endian
+            result["valid_header"] = magic == b"GGUF"  # Little endian
     except Exception as e:
         logger.error(f"Error leyendo header: {e}")
 

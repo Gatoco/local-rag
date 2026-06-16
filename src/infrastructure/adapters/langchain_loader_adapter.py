@@ -40,17 +40,25 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"No existe el archivo: {file_path}")
 
-        loader: Any = None
         if file_path.endswith(".pdf"):
             return self._load_pdf_with_ocr(file_path)
-        elif file_path.endswith(".docx"):
+        elif file_path.endswith(".json"):
+            return self._load_json_as_documents(file_path)
+        elif file_path.endswith(".csv"):
+            try:
+                loader = CSVLoader(file_path, source_column="student_id")
+                docs = loader.load()
+            except Exception:
+                docs = self._load_csv_as_text(file_path)
+            return cast(list[Any], self.text_splitter.split_documents(docs))
+
+        loader: Any = None
+        if file_path.endswith(".docx"):
             loader = Docx2txtLoader(file_path)
         elif file_path.endswith(".txt"):
             loader = TextLoader(file_path, encoding="utf-8")
         elif file_path.endswith(".md"):
             loader = TextLoader(file_path, encoding="utf-8")
-        elif file_path.endswith(".json"):
-            return self._load_json_as_documents(file_path)
         elif file_path.endswith((".xlsx", ".xls")):
             loader = UnstructuredExcelLoader(file_path, mode="elements")
         elif file_path.endswith(".pptx"):
@@ -59,13 +67,11 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
             loader = UnstructuredImageLoader(file_path, mode="elements")
         elif file_path.endswith((".html", ".htm")):
             loader = BSHTMLLoader(file_path)
-        elif file_path.endswith(".csv"):
-            try:
-                loader = CSVLoader(file_path, source_column="student_id")
-                docs = loader.load()
-            except Exception:
-                docs = self._load_csv_as_text(file_path)
-            return cast(list[Any], self.text_splitter.split_documents(docs))
+        else:
+            raise ValueError(f"Extensión no soportada: {file_path}")
+
+        docs = loader.load()
+        return cast(list[Any], self.text_splitter.split_documents(docs))
 
     def _load_json_as_documents(self, file_path: str) -> list[Any]:
         """

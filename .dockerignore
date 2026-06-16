@@ -1,0 +1,72 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python virtual env
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.egg-info/
+local_rag.egg-info/
+
+# Tests & cache
+tests/
+.pytest_cache/
+.ruff_cache/
+.benchmarks/
+htmlcov/
+.coverage
+coverage.xml
+
+# Models (mounted at runtime)
+models/
+
+# ChromaDB (persisted at runtime)
+chroma_db/
+
+# Logs & backups
+logs/
+backups/
+
+# IDE
+.vscode
+.idea
+*.swp
+.openclaw/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Agent / workspace context (no es parte del runtime)
+agent/
+agent_context/
+memory/
+prompts/
+
+# Docs a ingestar (input del usuario, no del build)
+docs_to_ingest/
+
+# Scripts de utilidad (no parte del runtime)
+scripts/
+
+# Electron UI (no parte del backend)
+ui/electron/
+
+# Setup scripts
+setup.bat
+setup.sh
+
+# Docs
+*.md
+!README.md
+
+# Environment
+.env
+.env.*
+
+# Output temporal
+output.txt

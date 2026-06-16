@@ -29,10 +29,6 @@ import os
 import sys
 import argparse
 import logging
-from pathlib import Path
-
-# Añadir src al path
-sys.path.insert(0, str(Path(__file__).parent))
 
 from dotenv import load_dotenv
 from colorama import Fore, Style, init

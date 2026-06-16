@@ -6,9 +6,6 @@ Usage: python reindex.py [docs_dir]
 
 import os
 import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent))
 
 from src.infrastructure.adapters.hf_embedding_adapter import HFEmbeddingAdapter
 from src.infrastructure.adapters.chromadb_adapter import ChromaDBAdapter

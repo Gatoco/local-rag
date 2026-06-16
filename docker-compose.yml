@@ -29,7 +29,7 @@ services:
       - USER_PASSWORD=${USER_PASSWORD:-user123}
       
       # Configuración RAG
-      - LLAMA_CPP_MODEL_PATH=/app/models/mistral-7b-instruct-v0.3.Q4_K_M.gguf
+      - LLAMA_CPP_MODEL_PATH=/app/models/TinyLlama-1.1B-Q4_K_M.gguf
       - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
       - CHROMA_DB_PATH=/app/chroma_db
       - TOP_K_DOCUMENTS=4
@@ -59,7 +59,7 @@ services:
       - API_URL=http://rag-api:8000/api/v1
       - STREAMLIT_SERVER_PORT=8501
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
-    command: ["python", "run_ui.py"]
+    command: ["python", "-m", "streamlit", "run", "ui/app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
     restart: unless-stopped
     depends_on:
       rag-api:
@@ -71,8 +71,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: rag-redis
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes

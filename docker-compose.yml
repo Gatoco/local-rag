@@ -22,11 +22,11 @@ services:
       - API_HOST=0.0.0.0
       - API_PORT=8000
       
-      # Seguridad
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-cambia-esto-en-produccion}
+      # Seguridad (OBLIGATORIO: configurar estas variables antes de ejecutar)
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set}
       - JWT_ACCESS_TOKEN_MINUTES=60
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-      - USER_PASSWORD=${USER_PASSWORD:-user123}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}
+      - USER_PASSWORD=${USER_PASSWORD:?USER_PASSWORD must be set}
       
       # Configuración RAG
       - LLAMA_CPP_MODEL_PATH=/app/models/TinyLlama-1.1B-Q4_K_M.gguf

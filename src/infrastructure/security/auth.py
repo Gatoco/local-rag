@@ -25,27 +25,13 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
 
-# Configuración - Secretos obligatorios
+# Configuración - Secretos (lazy validation)
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 USER_PASSWORD = os.getenv("USER_PASSWORD")
 
-# Validar que todos los secretos están configurados
-_missing = []
-if not SECRET_KEY:
-    _missing.append("JWT_SECRET_KEY")
-if not ADMIN_PASSWORD:
-    _missing.append("ADMIN_PASSWORD")
-if not USER_PASSWORD:
-    _missing.append("USER_PASSWORD")
-
-if _missing:
-    raise ValueError(
-        f"Secrets not configured. Set the following environment variables: {', '.join(_missing)}"
-    )
-
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "60"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 # Password hashing con argon2
 ph = PasswordHasher()
@@ -53,14 +39,40 @@ ph = PasswordHasher()
 # Security scheme
 security = HTTPBearer(auto_error=False)
 
+# Bandera para saber si ya se inicializaron los usuarios
+_users_initialized = False
+
+
+def _get_secret(name: str, value: str | None) -> str:
+    """Get a secret or raise a clear error if not set."""
+    if not value:
+        raise RuntimeError(
+            f"Security error: {name} is not set. "
+            f"Set the {name} environment variable to run the API."
+        )
+    return value
+
+
+def _validate_auth_secrets() -> None:
+    """Validate that all required auth secrets are configured."""
+    _get_secret("JWT_SECRET_KEY", SECRET_KEY)
+    _get_secret("ADMIN_PASSWORD", ADMIN_PASSWORD)
+    _get_secret("USER_PASSWORD", USER_PASSWORD)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # USUARIOS (Base de datos SQLite)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def _init_users_from_env():
+def _init_users_from_env() -> None:
     """Inicializa usuarios desde environment variables si no existen."""
+    global _users_initialized
+    if _users_initialized:
+        return
+
+    _validate_auth_secrets()
+
     from src.infrastructure.security.database import get_user_repository
 
     repo = get_user_repository()
@@ -71,8 +83,7 @@ def _init_users_from_env():
     if not user:
         repo.create_user("user", USER_PASSWORD, role="user")
 
-
-_init_users_from_env()
+    _users_initialized = True
 
 
 class User:
@@ -155,6 +166,7 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
     Returns:
         Token JWT codificado
     """
+    _validate_auth_secrets()
     to_encode = data.copy()
 
     if expires_delta:
@@ -307,6 +319,7 @@ async def login(request: TokenRequest):
       -d '{"username": "admin", "password": "admin123"}'
     ```
     """
+    _init_users_from_env()
     user = authenticate_user(request.username, request.password)
 
     if not user:

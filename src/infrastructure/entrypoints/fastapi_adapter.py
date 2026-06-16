@@ -621,13 +621,28 @@ def create_app(rag_service: RAGService, enable_auth: bool = True) -> "FastAPI":
         logger.info("Seguridad habilitada: JWT + Rate Limiting")
 
     # Agregar CORS middleware
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],  # Configurar según necesidades
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # CORS_ALLOWED_ORIGINS: comma-separated list of allowed origins, or "*" for all (dev only)
+    # Empty (default) means no CORS - most secure for production
+    cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+    if cors_origins_env == "*":
+        cors_origins = ["*"]
+        allow_credentials = True
+        logger.warning("CORS: allowing all origins (*) - development mode only")
+    elif cors_origins_env:
+        cors_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+        allow_credentials = True
+    else:
+        cors_origins = []
+        allow_credentials = False
+
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=allow_credentials,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     # Incluir router
     router = create_router(rag_service)

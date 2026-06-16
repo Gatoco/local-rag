@@ -276,13 +276,14 @@ class RAGService(RAGPort):
         Returns:
             Resultado de la cadena RAG
         """
-        from src.infrastructure.adapters.cloud_llm_adapter import CloudLLMAdapter
-        from src.infrastructure.adapters.langchain_rag_adapter import LangChainRAGAdapter
+        from src.application.factories.llm_adapter_factory import LLMAdapterFactory
 
         try:
-            cloud_llm = CloudLLMAdapter(provider=provider, model=model, api_key=api_key)
+            cloud_llm = LLMAdapterFactory.create_cloud_adapter(
+                provider=provider, model=model, api_key=api_key
+            )
 
-            cloud_chain = LangChainRAGAdapter(
+            cloud_chain = LLMAdapterFactory.create_rag_chain(
                 llm_adapter=cloud_llm,
                 doc_store=self.doc_store,
                 prompt_template=self.chain.prompt_template
@@ -292,8 +293,9 @@ class RAGService(RAGPort):
             )
 
             result = cloud_chain.invoke(question)
+            model_name = getattr(cloud_llm, 'model', model or 'unknown')
             logger.info(
-                f"Consulta cloud completada con provider={provider}, model={cloud_llm.model}"
+                f"Consulta cloud completada con provider={provider}, model={model_name}"
             )
             return result
 
@@ -348,20 +350,56 @@ class RAGService(RAGPort):
 
     def get_document_count(self) -> int:
         """
-        Obtiene el número de documentos en el almacén vectorial.
+        Obtiene el numero de documentos en el almacen vectorial.
 
         Returns:
-            Número de documentos indexados
+            Numero de documentos indexados
         """
         try:
-            # ChromaDB tiene método _collection.count()
-            if hasattr(self.doc_store, "vector_store"):
-                count = self.doc_store.vector_store._collection.count()
-                return cast(int, count)
+            if hasattr(self.doc_store, "count"):
+                return self.doc_store.count()
             return 0
         except Exception as e:
             logger.error(f"No se pudo obtener conteo de documentos: {e}")
             raise RAGServiceError(f"Error al obtener conteo de documentos: {e}") from e
+
+    def list_documents(self, limit: int = 20, offset: int = 0) -> dict[str, Any]:
+        """
+        Lista documentos con paginación.
+
+        Args:
+            limit: Máximo de documentos a retornar
+            offset: Offset para paginación
+
+        Returns:
+            Dict con documents y total
+        """
+        try:
+            if hasattr(self.doc_store, "list_documents"):
+                documents, total = self.doc_store.list_documents(limit=limit, offset=offset)
+                return {"documents": documents, "total": total}
+            return {"documents": [], "total": 0}
+        except Exception as e:
+            logger.error(f"No se pudo listar documentos: {e}")
+            raise RAGServiceError(f"Error al listar documentos: {e}") from e
+
+    def delete_document(self, document_id: str) -> bool:
+        """
+        Elimina un documento por ID.
+
+        Args:
+            document_id: ID del documento a eliminar
+
+        Returns:
+            True si se eliminó
+        """
+        try:
+            if hasattr(self.doc_store, "delete_document"):
+                return self.doc_store.delete_document(document_id)
+            return False
+        except Exception as e:
+            logger.error(f"No se pudo eliminar documento {document_id}: {e}")
+            raise RAGServiceError(f"Error al eliminar documento: {e}") from e
 
     def update_top_k(self, top_k: int) -> None:
         """

@@ -45,10 +45,29 @@ from src.infrastructure.entrypoints.api_schemas import (
 
 logger = logging.getLogger(__name__)
 
-# Variables globales para métricas
+# Variables globales para métricas (thread-safe)
+import threading
+
 START_TIME = datetime.now()
 QUERY_COUNT = 0
 TOTAL_LATENCY_MS = 0.0
+_metrics_lock = threading.Lock()
+
+# Caché semántico (lazy init)
+_semantic_cache: "SemanticCache | None" = None
+
+
+def _get_cache() -> "SemanticCache":
+    """Get or create the semantic cache instance."""
+    global _semantic_cache
+    if _semantic_cache is None:
+        from src.infrastructure.cache.semantic_cache import SemanticCache
+
+        ttl = int(os.getenv("CACHE_TTL_SECONDS", "3600"))
+        max_size = int(os.getenv("CACHE_MAX_SIZE", "1000"))
+        _semantic_cache = SemanticCache(ttl_seconds=ttl, max_size=max_size)
+        logger.info(f"SemanticCache initialized: ttl={ttl}s, max_size={max_size}")
+    return _semantic_cache
 
 
 def create_router(rag_service: RAGService) -> APIRouter:
@@ -159,7 +178,11 @@ def create_router(rag_service: RAGService) -> APIRouter:
         """
         global QUERY_COUNT, TOTAL_LATENCY_MS
 
-        avg_latency = TOTAL_LATENCY_MS / QUERY_COUNT if QUERY_COUNT > 0 else 0.0
+        with _metrics_lock:
+            current_count = QUERY_COUNT
+            current_latency = TOTAL_LATENCY_MS
+
+        avg_latency = current_latency / current_count if current_count > 0 else 0.0
         uptime = (datetime.now() - START_TIME).total_seconds()
 
         try:
@@ -167,11 +190,14 @@ def create_router(rag_service: RAGService) -> APIRouter:
         except Exception:
             doc_count = 0
 
+        cache = _get_cache()
+        cache_stats = cache.get_stats()
+
         return MetricsResponse(
-            total_queries=QUERY_COUNT,
+            total_queries=current_count,
             total_documents=doc_count,
             avg_latency_ms=round(avg_latency, 2),
-            cache_hit_rate=0.0,  # Implementar cuando haya caché
+            cache_hit_rate=cache_stats.get("hit_rate", 0.0),
             uptime_seconds=round(uptime, 2),
         )
 
@@ -206,7 +232,40 @@ def create_router(rag_service: RAGService) -> APIRouter:
         start_time = time.time()
         logger.info(f"Query received: {request.question[:100]}...")
 
+        cache = _get_cache()
+        cached_result = cache.get(request.question)
+
         try:
+            if cached_result:
+                logger.info(f"Cache hit for query: {request.question[:50]}...")
+                latency_ms = (time.time() - start_time) * 1000
+                with _metrics_lock:
+                    QUERY_COUNT += 1
+                    TOTAL_LATENCY_MS += latency_ms
+
+                sources = []
+                for doc in cached_result.get("source_documents", []):
+                    if hasattr(doc, "page_content"):
+                        sources.append(SourceDocument(
+                            content=doc.page_content,
+                            metadata=doc.metadata,
+                            id=getattr(doc, "id", None),
+                        ))
+                    elif isinstance(doc, dict):
+                        sources.append(SourceDocument(
+                            content=doc.get("page_content", ""),
+                            metadata=doc.get("metadata", {}),
+                            id=doc.get("id"),
+                        ))
+
+                return QueryResponse(
+                    answer=cached_result.get("answer", ""),
+                    sources=sources,
+                    question=request.question,
+                    latency_ms=round(latency_ms, 2),
+                    model="cached",
+                )
+
             result = rag_service.ask(
                 question=request.question,
                 provider=request.provider,
@@ -214,9 +273,12 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 api_key=request.api_key,
             )
 
+            cache.set(request.question, result)
+
             latency_ms = (time.time() - start_time) * 1000
-            QUERY_COUNT += 1
-            TOTAL_LATENCY_MS += latency_ms
+            with _metrics_lock:
+                QUERY_COUNT += 1
+                TOTAL_LATENCY_MS += latency_ms
 
             sources = []
             for doc in result.get("source_documents", []):
@@ -441,11 +503,17 @@ def create_router(rag_service: RAGService) -> APIRouter:
             GET /api/v1/documents?limit=20&offset=0
         """
         try:
-            # Nota: ChromaDB no tiene método directo para listar todos los documentos
-            # Esto es un placeholder - implementar según necesidades
+            result = rag_service.list_documents(limit=limit, offset=offset)
+            docs = []
+            for doc in result["documents"]:
+                docs.append(SourceDocument(
+                    id=doc["id"],
+                    content="",
+                    metadata=doc.get("metadata", {}),
+                ))
             return ListDocumentsResponse(
-                total=0,
-                documents=[],
+                total=result["total"],
+                documents=docs,
                 limit=limit,
                 offset=offset,
             )
@@ -476,6 +544,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
             }
         """
         try:
+            rag_service.delete_document(request.document_id)
             return DeleteResponse(
                 status="success",
                 message="Documento eliminado correctamente",

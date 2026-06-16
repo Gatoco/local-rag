@@ -17,3 +17,35 @@ class DocumentStorePort(ABC):
     def get_retriever(self, search_kwargs: dict[str, Any] | None = None) -> Any:
         """Devuelve un objeto 'retriever' compatible con LangChain."""
         pass
+
+    @abstractmethod
+    def count(self) -> int:
+        """Retorna el numero de documentos en el almacen vectorial."""
+        pass
+
+    @abstractmethod
+    def list_documents(self, limit: int = 20, offset: int = 0) -> tuple[list[dict[str, Any]], int]:
+        """
+        Lista documentos con paginación.
+
+        Args:
+            limit: Máximo de documentos a retornar
+            offset: Offset para paginación
+
+        Returns:
+            Tuple de (lista de documentos con id y metadata, total count)
+        """
+        pass
+
+    @abstractmethod
+    def delete_document(self, document_id: str) -> bool:
+        """
+        Elimina un documento por ID.
+
+        Args:
+            document_id: ID del documento a eliminar
+
+        Returns:
+            True si se eliminó, False si no existe
+        """
+        pass

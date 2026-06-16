@@ -38,7 +38,7 @@ class ChromaDBAdapter(DocumentStorePort):
         self.collection_name = collection_name
 
         # Cargamos la base de datos (o la creamos si no existe)
-        self.vector_store = Chroma(
+        self._vector_store = Chroma(
             collection_name=self.collection_name,
             embedding_function=self.embedding_model,
             persist_directory=self.persist_directory,
@@ -62,7 +62,7 @@ class ChromaDBAdapter(DocumentStorePort):
             for i in range(0, len(documents), batch_size):
                 batch_docs = documents[i : i + batch_size]
                 batch_ids = ids[i : i + batch_size] if ids else None
-                self.vector_store.add_documents(documents=batch_docs, ids=batch_ids)
+                self._vector_store.add_documents(documents=batch_docs, ids=batch_ids)
         except Exception as e:
             raise ChromaDBError(f"Error adding documents to ChromaDB: {e}") from e
 
@@ -74,7 +74,7 @@ class ChromaDBAdapter(DocumentStorePort):
             ChromaDBError: Si hay un error en la búsqueda
         """
         try:
-            result = self.vector_store.similarity_search(query, k=k)
+            result = self._vector_store.similarity_search(query, k=k)
             return cast(list[Any], result)
         except Exception as e:
             raise ChromaDBError(f"Error searching in ChromaDB: {e}") from e
@@ -83,4 +83,60 @@ class ChromaDBAdapter(DocumentStorePort):
         """Devuelve un objeto retriever que LangChain usará en la pipeline RAG."""
         if search_kwargs is None:
             search_kwargs = {"k": 4}  # Por defecto recuperamos 4 fragmentos de texto
-        return self.vector_store.as_retriever(search_kwargs=search_kwargs)
+        return self._vector_store.as_retriever(search_kwargs=search_kwargs)
+
+    def count(self) -> int:
+        """Retorna el numero de documentos en el almacen vectorial."""
+        try:
+            return cast(int, self._vector_store._collection.count())
+        except Exception as e:
+            raise ChromaDBError(f"Error counting documents: {e}") from e
+
+    def list_documents(self, limit: int = 20, offset: int = 0) -> tuple[list[dict[str, Any]], int]:
+        """
+        Lista documentos con paginación.
+
+        Args:
+            limit: Máximo de documentos a retornar
+            offset: Offset para paginación
+
+        Returns:
+            Tuple de (lista de documentos con id y metadata, total count)
+        """
+        try:
+            total = self.count()
+            if offset >= total:
+                return [], total
+
+            results = self._vector_store._collection.get(
+                skip=offset,
+                limit=limit,
+                include=["metadatas"],
+            )
+
+            documents = []
+            for doc_id, metadata in zip(results.get("ids", []), results.get("metadatas", []), strict=True):
+                documents.append({
+                    "id": doc_id,
+                    "metadata": metadata or {},
+                })
+
+            return documents, total
+        except Exception as e:
+            raise ChromaDBError(f"Error listing documents: {e}") from e
+
+    def delete_document(self, document_id: str) -> bool:
+        """
+        Elimina un documento por ID.
+
+        Args:
+            document_id: ID del documento a eliminar
+
+        Returns:
+            True si se eliminó, False si no existe
+        """
+        try:
+            self._vector_store._collection.delete(ids=[document_id])
+            return True
+        except Exception as e:
+            raise ChromaDBError(f"Error deleting document: {e}") from e

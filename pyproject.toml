@@ -26,7 +26,7 @@ dependencies = [
     "langchain>=0.3.28,<1.0.0",
     "langchain-ollama>=0.3.10",
     "langchain-huggingface>=0.0.43",
-    "chromadb>=1.5.5",
+    "chromadb>=1.5.5,<1.10.0",
     "ollama>=0.2.0",
     "pydantic>=2.0",
     "python-dotenv>=1.0.0",
@@ -35,20 +35,21 @@ dependencies = [
     "httpx>=0.27.0",
     "colorama>=0.4.6",
     "langchain-community>=0.3.31",
-    "llama-cpp-python",
+    "llama-cpp-python>=0.3.0,<0.4.0",
     "textual>=8.2.7",
 ]
 
-[project.scripts]
-mylocalrag = "src.infrastructure.entrypoints.repl.repl:run_repl"
-
 [project.optional-dependencies]
+ocr = ["pytesseract>=0.3.10"]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "mypy>=1.5.0",
     "ruff>=0.9.0",
 ]
+
+[project.scripts]
+mylocalrag = "src.infrastructure.entrypoints.repl.repl:run_repl"
 
 [project.urls]
 Homepage = "https://github.com/iwakura/local-rag"

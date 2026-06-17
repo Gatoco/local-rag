@@ -18,15 +18,19 @@ services:
       - ./logs:/app/logs
       - ./prompts:/app/prompts
     environment:
-      # Configuración de la API
+# Configuración de la API
       - API_HOST=0.0.0.0
       - API_PORT=8000
-      
+
       # Seguridad (OBLIGATORIO: configurar estas variables antes de ejecutar)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set}
       - JWT_ACCESS_TOKEN_MINUTES=60
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}
       - USER_PASSWORD=${USER_PASSWORD:?USER_PASSWORD must be set}
+
+      # Redis (requerido para rate limiting)
+      - REDIS_URL=redis://:$${REDIS_PASSWORD}@rag-redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
       
       # Configuración RAG
       - LLAMA_CPP_MODEL_PATH=/app/models/TinyLlama-1.1B-Q4_K_M.gguf
@@ -67,7 +71,7 @@ services:
     networks:
       - rag-network
 
-  # Redis (caché distribuida - opcional)
+  # Redis (caché distribuida)
   redis:
     image: redis:7-alpine
     container_name: rag-redis
@@ -75,7 +79,11 @@ services:
       - "6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+    command: >
+      sh -c 'echo "requirepass $${REDIS_PASSWORD}" >> /usr/local/etc/redis/redis.conf
+      && redis-server /usr/local/etc/redis/redis.conf --appendonly yes'
     restart: unless-stopped
     networks:
       - rag-network

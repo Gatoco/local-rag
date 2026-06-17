@@ -1,6 +1,11 @@
 import os
 import pytest
-from src.infrastructure.adapters.llama_cpp_llm_adapter import LlamaCppLLMAdapter
+
+try:
+    from src.infrastructure.adapters.llama_cpp_llm_adapter import LlamaCppLLMAdapter
+except ImportError:
+    LlamaCppLLMAdapter = None
+
 from src.infrastructure.adapters.hf_embedding_adapter import HFEmbeddingAdapter
 from src.infrastructure.adapters.chromadb_adapter import ChromaDBAdapter
 from src.infrastructure.adapters.langchain_loader_adapter import LangChainLoaderAdapter
@@ -8,17 +13,20 @@ from src.application.services.rag_service import RAGService
 
 def test_full_rag_flow_integration():
     """
-    Verifica que el sistema puede ingerir un archivo TXT,
+    Verifica que el sistema puede ingestar un archivo TXT,
     recuperar el contexto y generar una respuesta coherente.
     NOTA: Este test requiere un modelo GGUF disponible.
     """
+    if LlamaCppLLMAdapter is None:
+        pytest.skip("llama_cpp no instalado. Skip test de integración.")
+
     # 1. Setup con base de datos temporal para el test
     test_db_dir = "./test_chroma_db"
     test_file = "test_data.txt"
 
     # Obtener ruta del modelo desde variables de entorno o usar default
     model_path = os.getenv("LLAMA_CPP_MODEL_PATH", "./models/mistral-7b-instruct-v0.3.Q4_K_M.gguf")
-    
+
     # Skip si no hay modelo disponible (test opcional)
     if not os.path.exists(model_path):
         pytest.skip("Modelo GGUF no disponible. Skip test de integración.")

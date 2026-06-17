@@ -407,7 +407,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 )
 
             # Ejecutar ingestión
-            rag_service.ingest_document(request.file_path)
+            chunks_count = rag_service.ingest_document(request.file_path)
 
             logger.info(f"File ingested successfully: {request.file_path}")
 
@@ -415,7 +415,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 status="success",
                 message="Documento ingerido correctamente",
                 file_path=request.file_path,
-                chunks_count=0,  # Podría obtenerse del servicio
+                chunks_count=chunks_count,
             )
 
         except HTTPException:
@@ -458,7 +458,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 )
 
             # Ejecutar ingestión
-            rag_service.ingest_directory(request.dir_path)
+            chunks_count = rag_service.ingest_directory(request.dir_path)
 
             logger.info(f"Directory ingested successfully: {request.dir_path}")
 
@@ -466,7 +466,7 @@ def create_router(rag_service: RAGService) -> APIRouter:
                 status="success",
                 message="Directorio ingerido correctamente",
                 dir_path=request.dir_path,
-                chunks_count=0,
+                chunks_count=chunks_count,
             )
 
         except HTTPException:

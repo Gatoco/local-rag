@@ -124,15 +124,18 @@ class RAGService(RAGPort):
         if top_k > 20:
             logger.warning(f"top_k={top_k} es alto, puede afectar rendimiento y costos")
 
-    def ingest_document(self, file_path: str) -> None:
+def ingest_document(self, file_path: str) -> int:
         """
         Carga, divide e indexa un documento individual.
 
         Args:
-            file_path: Ruta al archivo a ingerir
+            file_path: Ruta al archivo a ingest_document
+
+        Returns:
+            Número de fragmentos generados
 
         Raises:
-            RAGServiceIngestionError: Si falla la ingesta
+            RAGServiceIngestionError: Si falla la ingestión
             FileNotFoundError: Si el archivo no existe
         """
         logger.info(f"Ingestando documento: {file_path}")
@@ -146,6 +149,8 @@ class RAGService(RAGPort):
             self.doc_store.add_documents(chunks)
             logger.info(f"Documento indexado: {file_path} ({len(chunks)} fragmentos)")
 
+            return len(chunks)
+
         except FileNotFoundError:
             logger.error(f"Archivo no encontrado: {file_path}")
             raise
@@ -153,15 +158,18 @@ class RAGService(RAGPort):
             logger.error(f"Error en ingesta de {file_path}: {e}")
             raise RAGServiceIngestionError(f"Error ingesting {file_path}: {e}") from e
 
-    def ingest_directory(self, dir_path: str) -> None:
+def ingest_directory(self, dir_path: str) -> int:
         """
         Carga e indexa todos los documentos válidos de un directorio.
 
         Args:
-            dir_path: Ruta al directorio a ingerir
+            dir_path: Ruta al directorio a ingest_directory
+
+        Returns:
+            Número de fragmentos generados
 
         Raises:
-            RAGServiceIngestionError: Si falla la ingesta
+            RAGServiceIngestionError: Si falla la ingestión
             FileNotFoundError: Si el directorio no existe
         """
         logger.info(f"Ingestando directorio: {dir_path}")
@@ -176,6 +184,8 @@ class RAGService(RAGPort):
 
             self.doc_store.add_documents(chunks)
             logger.info(f"Directorio indexado: {dir_path} ({len(chunks)} fragmentos)")
+
+            return len(chunks)
 
         except FileNotFoundError:
             logger.error(f"Directorio no encontrado: {dir_path}")

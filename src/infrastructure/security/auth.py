@@ -15,7 +15,7 @@ Uso:
 """
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from argon2 import PasswordHasher
@@ -33,8 +33,16 @@ USER_PASSWORD = os.getenv("USER_PASSWORD")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
-# Password hashing con argon2
-ph = PasswordHasher()
+# Password hashing con argon2 (lazy initialization)
+_ph: PasswordHasher | None = None
+
+
+def _get_password_hasher() -> PasswordHasher:
+    """Get or create the PasswordHasher instance (lazy initialization)."""
+    global _ph
+    if _ph is None:
+        _ph = PasswordHasher()
+    return _ph
 
 # Security scheme
 security = HTTPBearer(auto_error=False)
@@ -117,17 +125,17 @@ def _user_from_record(record) -> User:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifica una contraseña contra su hash."""
+    """Verifica una contrasenha contra su hash."""
     try:
-        ph.verify(hashed_password, plain_password)
+        _get_password_hasher().verify(hashed_password, plain_password)
         return True
     except VerifyMismatchError:
         return False
 
 
 def get_password_hash(password: str) -> str:
-    """Genera hash de contraseña."""
-    result = ph.hash(password)
+    """Genera hash de contrasenha."""
+    result = _get_password_hasher().hash(password)
     return cast(str, result)
 
 
@@ -170,9 +178,9 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

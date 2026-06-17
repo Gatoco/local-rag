@@ -170,8 +170,12 @@ class RateLimiter:
         # Almacenamiento de requests: {key: [timestamps]}
         self._requests: dict[str, list] = defaultdict(list)
 
-        # Límites por endpoint
+        # Limites por endpoint
         self._endpoint_limits: dict[str, int] = {}
+
+        # Contador para cleanup periodico de keys huérfanas
+        self._cleanup_counter = 0
+        self._cleanup_interval = 100  # Full cleanup cada N requests
 
     def set_endpoint_limit(self, endpoint: str, limit: int):
         """Establece límite específico para un endpoint."""
@@ -183,6 +187,21 @@ class RateLimiter:
         cutoff = now - window_seconds
 
         self._requests[key] = [ts for ts in self._requests[key] if ts > cutoff]
+
+        if not self._requests[key]:
+            del self._requests[key]
+
+    def _cleanup_all_old_requests(self, window_seconds: int) -> None:
+        """Elimina requests antiguos de todas las keys. Llamar periodicamente."""
+        now = time.time()
+        cutoff = now - window_seconds
+        keys_to_remove = []
+        for key, timestamps in self._requests.items():
+            self._requests[key] = [ts for ts in timestamps if ts > cutoff]
+            if not self._requests[key]:
+                keys_to_remove.append(key)
+        for key in keys_to_remove:
+            del self._requests[key]
 
     def _get_request_count(self, key: str, window_seconds: int) -> int:
         """Obtiene número de requests en la ventana."""
@@ -252,6 +271,12 @@ class RateLimiter:
 
         # Request permitido
         self._record_request(key)
+
+        # Cleanup periodico de keys huérfanas
+        self._cleanup_counter += 1
+        if self._cleanup_counter >= self._cleanup_interval:
+            self._cleanup_all_old_requests(3600)
+            self._cleanup_counter = 0
 
         # Actualizar headers
         if not headers:

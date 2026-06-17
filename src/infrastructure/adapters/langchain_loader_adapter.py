@@ -20,13 +20,20 @@ from src.domain.ports.document_loader_port import DocumentLoaderPort
 
 
 class LangChainLoaderAdapter(DocumentLoaderPort):
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 150):
+    def __init__(
+        self,
+        chunk_size: int = 1000,
+        chunk_overlap: int = 150,
+        csv_source_column: str | None = None,
+    ):
         """
         Inicializa el adaptador para cargar y dividir documentos.
 
         Args:
             chunk_size (int): Tamaño de cada fragmento de texto (en caracteres).
             chunk_overlap (int): Superposición entre fragmentos para no perder contexto.
+            csv_source_column (str | None): Nombre de la columna en CSV para usar como
+                source. None usa "source" por defecto en CSVLoader.
         """
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
@@ -34,6 +41,7 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
             length_function=len,
             is_separator_regex=False,
         )
+        self.csv_source_column = csv_source_column
 
     def load_and_split(self, file_path: str) -> list[Any]:
         """Carga un archivo basándose en su extensión y lo divide en fragmentos."""
@@ -46,7 +54,8 @@ class LangChainLoaderAdapter(DocumentLoaderPort):
             return self._load_json_as_documents(file_path)
         elif file_path.endswith(".csv"):
             try:
-                loader = CSVLoader(file_path, source_column="student_id")
+                source_col = self.csv_source_column or "source"
+                loader = CSVLoader(file_path, source_column=source_col)
                 docs = loader.load()
             except Exception:
                 docs = self._load_csv_as_text(file_path)

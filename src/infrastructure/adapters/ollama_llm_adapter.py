@@ -45,7 +45,17 @@ class OllamaLLMAdapter(LLMPort):
             temperature: Creatividad (0.0 = determinista, 1.0 = creativo)
             base_url: URL donde corre Ollama
             request_timeout: Timeout para requests HTTP
+
+        .. deprecated::
+            OllamaLLMAdapter está deprecado. Usar LlamaCppLLMAdapter.
         """
+        import warnings
+        warnings.warn(
+            "OllamaLLMAdapter está deprecado. Use LlamaCppLLMAdapter.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.model_name = model_name
         self.temperature = temperature
         self.base_url = base_url

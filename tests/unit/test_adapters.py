@@ -166,7 +166,7 @@ class TestChromaDBAdapter:
         mock_docs = [Mock(), Mock()]
         adapter.add_documents(mock_docs)
         
-        adapter.vector_store.add_documents.assert_called_once_with(
+        adapter._vector_store.add_documents.assert_called_once_with(
             documents=mock_docs,
             ids=None
         )
@@ -184,7 +184,7 @@ class TestChromaDBAdapter:
         mock_ids = ["doc_001"]
         adapter.add_documents(mock_docs, ids=mock_ids)
         
-        adapter.vector_store.add_documents.assert_called_once_with(
+        adapter._vector_store.add_documents.assert_called_once_with(
             documents=mock_docs,
             ids=mock_ids
         )
@@ -199,12 +199,12 @@ class TestChromaDBAdapter:
         )
         
         mock_docs = [Mock(), Mock()]
-        adapter.vector_store.similarity_search.return_value = mock_docs
+        adapter._vector_store.similarity_search.return_value = mock_docs
         
         result = adapter.search_similar("query", k=2)
         
         assert result == mock_docs
-        adapter.vector_store.similarity_search.assert_called_once_with("query", k=2)
+        adapter._vector_store.similarity_search.assert_called_once_with("query", k=2)
 
     def test_get_retriever(self, mock_embedding_port, mock_chroma):
         """Test: Obtener retriever"""
@@ -216,12 +216,12 @@ class TestChromaDBAdapter:
         )
         
         mock_retriever = Mock()
-        adapter.vector_store.as_retriever.return_value = mock_retriever
+        adapter._vector_store.as_retriever.return_value = mock_retriever
         
         result = adapter.get_retriever(search_kwargs={"k": 4})
         
         assert result == mock_retriever
-        adapter.vector_store.as_retriever.assert_called_once_with(
+        adapter._vector_store.as_retriever.assert_called_once_with(
             search_kwargs={"k": 4}
         )
 
@@ -236,7 +236,7 @@ class TestChromaDBAdapter:
         
         adapter.get_retriever()
         
-        adapter.vector_store.as_retriever.assert_called_once_with(
+        adapter._vector_store.as_retriever.assert_called_once_with(
             search_kwargs={"k": 4}
         )
 

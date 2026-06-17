@@ -145,7 +145,6 @@ class RAGService(RAGPort):
 
             self.doc_store.add_documents(chunks)
             logger.info(f"Documento indexado: {file_path} ({len(chunks)} fragmentos)")
-            print(f"[+] Documento indexado correctamente: {len(chunks)} fragmentos.")
 
         except FileNotFoundError:
             logger.error(f"Archivo no encontrado: {file_path}")
@@ -177,7 +176,6 @@ class RAGService(RAGPort):
 
             self.doc_store.add_documents(chunks)
             logger.info(f"Directorio indexado: {dir_path} ({len(chunks)} fragmentos)")
-            print(f"[+] Directorio indexado correctamente: {len(chunks)} fragmentos totales.")
 
         except FileNotFoundError:
             logger.error(f"Directorio no encontrado: {dir_path}")

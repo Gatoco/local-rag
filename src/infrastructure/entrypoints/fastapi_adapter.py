@@ -695,8 +695,8 @@ def create_app(rag_service: RAGService, enable_auth: bool = True) -> "FastAPI":
     cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
     if cors_origins_env == "*":
         cors_origins = ["*"]
-        allow_credentials = True
-        logger.warning("CORS: allowing all origins (*) - development mode only")
+        allow_credentials = False
+        logger.warning("CORS: allowing all origins (*) without credentials - development mode only")
     elif cors_origins_env:
         cors_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
         allow_credentials = True

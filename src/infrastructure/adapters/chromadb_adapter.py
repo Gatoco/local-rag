@@ -140,3 +140,39 @@ class ChromaDBAdapter(DocumentStorePort):
             return True
         except Exception as e:
             raise ChromaDBError(f"Error deleting document: {e}") from e
+
+    def query_with_embeddings(
+        self,
+        query_embeddings: list[float],
+        k: int = 4,
+        include_documents: bool = True,
+        include_metadatas: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Busca documentos usando embeddings pre-computados.
+
+        Args:
+            query_embeddings: Embeddings de la query
+            k: Numero de documentos a recuperar
+            include_documents: Incluir textos en resultados
+            include_metadatas: Incluir metadatos en resultados
+
+        Returns:
+            Dict con 'documents', 'metadatas', 'ids', 'distances'
+        """
+        try:
+            include = []
+            if include_documents:
+                include.append("documents")
+            if include_metadatas:
+                include.append("metadatas")
+
+            results = self._vector_store._collection.query(
+                query_embeddings=[query_embeddings],
+                n_results=k,
+                include=include if include else ["documents"],
+            )
+
+            return cast(dict[str, Any], results)
+        except Exception as e:
+            raise ChromaDBError(f"Error querying with embeddings: {e}") from e

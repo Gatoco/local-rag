@@ -7,8 +7,8 @@ Usage: python reindex.py [docs_dir]
 import os
 import sys
 
-from src.infrastructure.adapters.hf_embedding_adapter import HFEmbeddingAdapter
 from src.infrastructure.adapters.chromadb_adapter import ChromaDBAdapter
+from src.infrastructure.adapters.hf_embedding_adapter import HFEmbeddingAdapter
 from src.infrastructure.adapters.langchain_loader_adapter import LangChainLoaderAdapter
 
 
@@ -48,7 +48,7 @@ def reindex_directory(docs_dir: str = "./docs_to_ingest", collection_name: str =
     print("\n[Indexing] Adding documents to ChromaDB...")
     chroma_adapter.add_documents(all_docs)
 
-    count = chroma_adapter.vector_store._collection.count()
+    count = chroma_adapter.count()
     print(f"\n[DONE] Indexed {count} documents")
     print("=" * 60)
 

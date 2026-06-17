@@ -52,9 +52,7 @@ def mock_doc_store():
     store.add_documents = Mock()
     store.search_similar = Mock(return_value=[])
     store.get_retriever = Mock(return_value=Mock())
-    store.vector_store = Mock()
-    store.vector_store._collection = Mock()
-    store.vector_store._collection.count = Mock(return_value=100)
+    store.count = Mock(return_value=100)
     return store
 
 
@@ -321,15 +319,15 @@ class TestRAGServiceAuxiliary:
     def test_get_document_count(self, rag_service, mock_doc_store):
         """Test: Obtener conteo de documentos"""
         count = rag_service.get_document_count()
-        
+
         assert count == 100
-        mock_doc_store.vector_store._collection.count.assert_called_once()
+        mock_doc_store.count.assert_called_once()
 
     def test_get_document_count_exception(self, rag_service, mock_doc_store):
-        """Test: Excepción en conteo lanza RAGServiceError"""
+        """Test: Excepcion en conteo lanza RAGServiceError"""
         from src.application.services.rag_service import RAGServiceError
 
-        mock_doc_store.vector_store._collection.count.side_effect = Exception("Error")
+        mock_doc_store.count.side_effect = Exception("Error")
 
         with pytest.raises(RAGServiceError):
             rag_service.get_document_count()

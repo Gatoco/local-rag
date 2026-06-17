@@ -46,6 +46,28 @@ class DocumentStorePort(ABC):
             document_id: ID del documento a eliminar
 
         Returns:
-            True si se eliminó, False si no existe
+            True si se elimino, False si no existe
+        """
+        pass
+
+    @abstractmethod
+    def query_with_embeddings(
+        self,
+        query_embeddings: list[float],
+        k: int = 4,
+        include_documents: bool = True,
+        include_metadatas: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Busca documentos usando embeddings pre-computados.
+
+        Args:
+            query_embeddings: Embeddings de la query
+            k: Numero de documentos a recuperar
+            include_documents: Incluir textos en resultados
+            include_metadatas: Incluir metadatos en resultados
+
+        Returns:
+            Dict con 'documents', 'metadatas', 'ids', 'distances'
         """
         pass

@@ -20,7 +20,7 @@
 - [x] Crear agent_context/PROJECT.md (2026-06-16)
 - [x] Crear agent_context/STANDARDS.md (2026-06-16)
 - [x] Configurar MCP server (14 tools: git, tests, CI)
-- [x] Configurar session manager con urgencia y Telegram
+- [x] Configurar session manager con urgencia
 - [x] Mantenimiento 2026-06-16:
   - Dockerfile multi-stage build
   - Redis puerto interno (no expuesto al host)

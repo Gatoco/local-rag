@@ -33,8 +33,7 @@ src/
 
 | Tipo | Implementaciones |
 |---|---|
-| LLM Local | `llama_cpp_llm_adapter`, `lmstudio_llm_adapter`, `ollama_llm_adapter` |
-| LLM Cloud | `cloud_llm_adapter` (multi-provider) |
+| LLM Cloud | `cloud_llm_adapter` (OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek) |
 | Embeddings | `hf_embedding_adapter` (MiniLM, BGE-Large) |
 | Vector Store | `chromadb_adapter` |
 | Loader | `langchain_loader_adapter` (PDF, DOCX, PPTX, XLSX, HTML, CSV, TXT, MD) |

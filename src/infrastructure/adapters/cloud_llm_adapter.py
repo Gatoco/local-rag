@@ -282,8 +282,8 @@ class CloudLLMAdapter(LLMPort):
         return None
 
     def get_model(self) -> Any:
-        """Retorna el adapter mismo (para compatibilidad con LangChain)."""
-        return self
+        """Cloud adapters don't expose a LangChain model instance."""
+        return None
 
     def get_model_info(self) -> dict[str, Any]:
         """Información del modelo."""

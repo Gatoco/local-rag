@@ -94,8 +94,8 @@ class TestCloudLLMAdapter:
         adapter = CloudLLMAdapter(provider="deepseek", api_key="sk-test")
         assert adapter.base_url == "https://api.deepseek.com/v1"
 
-    def test_get_model_returns_self(self, cloud_llm_minimax):
-        assert cloud_llm_minimax.get_model() is cloud_llm_minimax
+    def test_get_model_returns_none_for_cloud_adapter(self, cloud_llm_minimax):
+        assert cloud_llm_minimax.get_model() is None
 
     def test_unknown_provider_returns_empty_models(self):
         models = CloudLLMAdapter.get_provider_models("unknown")

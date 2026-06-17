@@ -9,8 +9,7 @@ FROM python:3.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    UV_SYSTEM_PYTHON=1
 
 WORKDIR /build
 
@@ -18,12 +17,19 @@ WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
+    curl \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar dependencias de Python en /install (user-install para copiar fácil)
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# Instalar uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Copiar lockfile y pyproject
+COPY uv.lock pyproject.toml ./
+
+# Instalar dependencias en /install
+RUN uv sync --frozen --no-dev --no-editable --python 3.12 --prefix=/install
 
 # ============================================================
 # Stage 2: runtime - imagen final limpia
@@ -32,8 +38,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    UV_SYSTEM_PYTHON=1
 
 WORKDIR /app
 
@@ -45,7 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copiar dependencias compiladas desde builder
 COPY --from=builder /install/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /install/bin /usr/local/bin
+COPY --from=builder /root/.local/bin/uv /usr/local/bin/uv
 
 # Copiar código de la aplicación
 COPY src ./src

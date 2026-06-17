@@ -14,7 +14,7 @@
 
 ## Features
 
-- **Local + Cloud**: llama.cpp/LM Studio (local) o OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek (cloud)
+- **Local + Cloud**: llama.cpp (local) o OpenAI, Anthropic, Google, Groq, MiniMax, DeepSeek (cloud)
 - **Arquitectura hexagonal**: Cambia componentes sin romper la logica de negocio
 - **Seguridad**: JWT auth, argon2 hashing, rate limiting con Redis
 - **Persistencia**: ChromaDB vector store en disco
@@ -94,6 +94,8 @@ MINIMAX_API_KEY=sk-cp-...
 ### REPL (recomendado)
 
 ```bash
+python mylocalrag.py
+# o directamente
 python -m src.infrastructure.entrypoints.repl.repl
 ```
 
@@ -121,14 +123,18 @@ python run_api.py
 # http://localhost:8000/docs
 ```
 
-| Metodo | Endpoint                    | Descripcion           |
-|--------|-----------------------------|-----------------------|
-| GET    | `/api/v1/health`            | Health check          |
-| POST   | `/api/v1/query`             | Consulta RAG          |
-| POST   | `/api/v1/query/stream`      | Streaming             |
-| POST   | `/api/v1/ingest/file`       | Ingestar archivo      |
-| POST   | `/api/v1/ingest/directory`  | Ingestar directorio   |
-| GET    | `/api/v1/llm/providers`     | Providers disponibles |
+| Metodo | Endpoint                         | Descripcion                |
+|--------|----------------------------------|----------------------------|
+| GET    | `/api/v1/health`                 | Health check               |
+| GET    | `/api/v1/metrics`                | Metricas de cache          |
+| POST   | `/api/v1/query`                  | Consulta RAG               |
+| POST   | `/api/v1/query/stream`           | Streaming                   |
+| POST   | `/api/v1/ingest/file`            | Ingestar archivo           |
+| POST   | `/api/v1/ingest/directory`       | Ingestar directorio        |
+| GET    | `/api/v1/documents`              | Listar documentos          |
+| DELETE | `/api/v1/documents/{doc_id}`     | Eliminar documento          |
+| GET    | `/api/v1/llm/providers`          | Providers cloud disponibles|
+| GET    | `/api/v1/llm/models/{provider}`  | Modelos de un provider      |
 
 ### Indexing de Documentos
 
@@ -137,6 +143,13 @@ python run_api.py
 python scripts/index_documents.py --reindex --timeout 1800
 
 # Opciones: --reindex, --resume, --docs ./dir, --batch-size N
+```
+
+### Streamlit UI
+
+```bash
+python run_ui.py
+# http://localhost:8501
 ```
 
 ---
